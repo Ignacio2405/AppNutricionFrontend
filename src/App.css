@@ -1,0 +1,36 @@
+* {
+  box-sizing: border-box;
+}
+html, body, #root {
+  width: 100% !important;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+.navbar-personalizado {
+  background-color: #6ca85d !important;
+}
+
+.sidebar-contenedor {
+  width: 280px !important;
+  min-width: 280px !important;
+  height: 100vh;
+  border-right: 3px solid #3c3c3d ;
+  box-shadow: 
+    0 0 0 3px #b8e0b8 ,/* Espacio en blanco (o color de fondo) */
+    0 0 0 6px #a0a2a5 , /* Segunda línea (intermedia) */
+    0 0 0 9px #b8e0b8 , /* Segundo espacio */
+    0 0 0 12px #a0a2a5 !important; /* Tercera línea (la más externa) */
+
+}
+
+@media (max-width: 767.98px) {
+  .sidebar-contenedor {
+    width: 100% !important;
+    min-width: 100% !important;
+    box-shadow: none !important; /* Quitamos el borde triple en móvil para que no rompa el diseño lateral */
+    border-right: none !important;
+  }
+}

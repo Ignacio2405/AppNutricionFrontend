@@ -1,0 +1,87 @@
+:root {
+  --sidebar-bg: #b8e0b8;        
+  --sidebar-text: #2e2d2d;        
+  --borde-1: #848488;         
+  --borde-2: #d5ebd5;             
+} /* <--- Faltaba cerrar esta llave */
+body{
+ background-color: #ebf3eb;
+}
+.custom-sidebar {
+  background-color: var(--sidebar-bg) !important;
+  color: var(--sidebar-text) !important;
+  width: 280px !important;
+  min-width: 280px !important;
+  height: 100%;
+  border-right: 3px solid var(--borde-1);
+  box-shadow: 
+    4px 0 0 0 var(--borde-2),  
+    7px 0 0 0 var(--borde-1),  
+    10px 0 0 0 var(--borde-2), 
+    13px 0 0 0 var(--borde-1); 
+}
+
+
+/* Fondo de pantalla completa para la vista de Login */
+.login-page-bg {
+  min-height: 100vh;
+  background-color: var(--borde-2); /* #d5ebd5 - Verde pastel muy suave de fondo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+/* Tarjeta principal del Login con borde triple en todo su contorno */
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background-color: #ffffff;
+  color: var(--sidebar-text); /* #2e2d2d */
+  border-radius: 16px;
+  border: 3px solid var(--borde-1); /* #848488 */
+  box-shadow: 
+    0 0 0 4px var(--borde-2),
+    0 0 0 7px var(--borde-1),
+    0 12px 28px rgba(46, 45, 45, 0.12);
+  overflow: hidden;
+}
+
+/* Cabecera de la tarjeta con el mismo color del Sidebar */
+.login-card-header {
+  background-color: var(--sidebar-bg); /* #b8e0b8 */
+  border-bottom: 3px solid var(--borde-1);
+  padding: 1.75rem 1.5rem;
+  text-align: center;
+}
+
+/* Inputs personalizados para combinar con la paleta */
+.login-input:focus {
+  border-color: #4f8a4f;
+  box-shadow: 0 0 0 0.25rem rgba(184, 224, 184, 0.55);
+}
+
+/* Botón principal en tono verde natural armonizado */
+.btn-login-custom {
+  background-color: #4f8a4f;
+  border: 2px solid #3d6e3d;
+  color: #ffffff;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-login-custom:hover {
+  background-color: #3d6e3d;
+  border-color: #2e542e;
+  color: #ffffff;
+}
+
+@media (max-width: 767.98px) {
+  .custom-sidebar {
+    width: 100% !important;
+    min-width: 100% !important;
+    box-shadow: none !important;
+    border-right: none !important;
+    height: auto !important; /* Para que en móvil no fuerce un alto de 100vh innecesario al desplegarse */
+  }
+}
