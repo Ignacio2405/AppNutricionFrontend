@@ -1,36 +1,32 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { CustomTable } from "../ui/CustomTable";
-import { CustomButton } from "../ui/CustomButton";
+import { BsEye, BsPencilSquare, BsTrash } from "react-icons/bs";
+import { CustomInput } from "../ui/CustomInput.jsx";
+import { CustomButton } from "../ui/CustomButton.jsx";
 import clientesAxios from "../../config/axios.js";
 
 export const ListarConsultas = () => {
   const [consultas, setConsultas] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
-  const [errorServer, setErrorServer] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
-
-  const cargarConsultas = useCallback(async () => {
-    const { data } = await clientesAxios.get("/consulta");
-    return Array.isArray(data)
-      ? data
-      : data.data || data.consultas || data.docs || [];
-  }, []);
 
   useEffect(() => {
     let cancelado = false;
 
     const ejecutarCarga = async () => {
       try {
-        const lista = await cargarConsultas();
-        if (!cancelado) {
-          setConsultas(lista);
-          setErrorServer("");
-        }
+        const { data } = await clientesAxios.get("/consulta");
+        if (cancelado) return;
+        const lista = Array.isArray(data)
+          ? data
+          : data.data || data.consultas || data.docs || [];
+        setConsultas(lista);
       } catch (err) {
         console.error("Error al cargar consultas:", err);
         if (!cancelado) {
-          setErrorServer(
+          setErrorMsg(
             err.response?.data?.mensaje ||
               "No se pudieron cargar las consultas.",
           );
@@ -43,15 +39,14 @@ export const ListarConsultas = () => {
     };
 
     ejecutarCarga();
-
     return () => {
       cancelado = true;
     };
-  }, [cargarConsultas]);
+  }, []);
 
   const handleEliminar = async (id) => {
     const confirmar = window.confirm(
-      "¿Deseas desactivar esta consulta médica?",
+      "¿Deseás desactivar esta consulta médica?",
     );
     if (!confirmar) return;
 
@@ -60,7 +55,7 @@ export const ListarConsultas = () => {
       setConsultas((prev) => prev.filter((c) => (c._id || c.id) !== id));
     } catch (err) {
       console.error("Error al desactivar consulta:", err);
-      setErrorServer(
+      setErrorMsg(
         err.response?.data?.mensaje || "Error al desactivar la consulta.",
       );
     }
@@ -72,82 +67,126 @@ export const ListarConsultas = () => {
     return `${persona.apellido || ""} ${persona.nombre || ""}`.trim() || "-";
   };
 
-  const columnas = [
-    {
-      titulo: "Fecha / Hora",
-      render: (row) => {
-        const fechaStr = row.fecha
-          ? new Date(row.fecha).toLocaleDateString("es-AR")
-          : "-";
-        return `${fechaStr} ${row.hora ? `· ${row.hora}` : ""}`;
-      },
-    },
-    {
-      titulo: "Paciente",
-      render: (row) => formatearPersona(row.paciente),
-    },
-    {
-      titulo: "Médico",
-      render: (row) => formatearPersona(row.medico),
-    },
-    {
-      titulo: "Peso (kg)",
-      render: (row) => row.antropometria?.mediciones?.peso ?? "-",
-    },
-    {
-      titulo: "IMC",
-      render: (row) => row.antropometria?.resultados?.imc ?? "Pendiente",
-    },
-    {
-      titulo: "Acciones",
-      render: (row) => {
-        const id = row._id || row.id;
-        return (
-          <div className="d-flex gap-2">
-            <CustomButton
-              type="button"
-              variant="outline-success"
-              onClick={() => navigate(`/consulta/${id}`)}
-            >
-              Ver
-            </CustomButton>
-            <CustomButton
-              type="button"
-              variant="outline-secondary"
-              onClick={() => navigate(`/consulta/${id}/editar`)}
-            >
-              Editar
-            </CustomButton>
-            <CustomButton
-              type="button"
-              variant="outline-danger"
-              onClick={() => handleEliminar(id)}
-            >
-              Eliminar
-            </CustomButton>
-          </div>
-        );
-      },
-    },
-  ];
+  const consultasFiltradas = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase();
+    if (!termino) return consultas;
+
+    return consultas.filter((row) => {
+      const pac =
+        typeof row.paciente === "object"
+          ? `${row.paciente?.apellido || ""} ${row.paciente?.nombre || ""} ${row.paciente?.dni || ""}`
+          : String(row.paciente || "");
+      const med =
+        typeof row.medico === "object"
+          ? `${row.medico?.apellido || ""} ${row.medico?.nombre || ""}`
+          : String(row.medico || "");
+      const obs = row.observaciones || "";
+
+      return `${pac} ${med} ${obs}`.toLowerCase().includes(termino);
+    });
+  }, [consultas, busqueda]);
 
   return (
-    <>
-      {errorServer && (
-        <div className="container pt-3">
-          <div className="alert alert-danger py-2 small mb-0">
-            {errorServer}
+    <div className="container py-4">
+      <div className="card shadow-sm border-0 p-4 rounded-4">
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <h3 className="fw-bold text-success mb-0">Consultas Médicas</h3>
+          <CustomButton
+            type="button"
+            onClick={() => navigate("/consulta/nueva")}
+          >
+            + Nueva Consulta
+          </CustomButton>
+        </div>
+
+        <div className="row mb-3">
+          <div className="col-md-6">
+            <CustomInput
+              name="busquedaConsultas"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por paciente, DNI, médico u observaciones..."
+            />
           </div>
         </div>
-      )}
-      <CustomTable
-        titulo="Consultas Médicas"
-        rutaNuevo="/consulta/nueva"
-        textoBotonNuevo="+ Nueva Consulta"
-        columnas={columnas}
-        datos={consultas}
-        loading={loading}
-      />
-    </>
+
+        {errorMsg && (
+          <div className="alert alert-danger py-2 small">{errorMsg}</div>
+        )}
+
+        {loading ? (
+          <p className="text-muted mb-0">Cargando consultas médicas...</p>
+        ) : consultasFiltradas.length === 0 ? (
+          <p className="text-muted mb-0">
+            No hay consultas médicas registradas.
+          </p>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Fecha / Hora</th>
+                  <th>Paciente</th>
+                  <th>Médico</th>
+                  <th>Peso (kg)</th>
+                  <th>IMC</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {consultasFiltradas.map((row) => {
+                  const id = row._id || row.id;
+                  const fechaStr = row.fecha
+                    ? new Date(row.fecha).toLocaleDateString("es-AR")
+                    : "-";
+                  return (
+                    <tr key={id}>
+                      <td>{`${fechaStr} ${row.hora ? `· ${row.hora}` : ""}`}</td>
+                      <td>{formatearPersona(row.paciente)}</td>
+                      <td>{formatearPersona(row.medico)}</td>
+                      <td>{row.antropometria?.mediciones?.peso ?? "-"}</td>
+                      <td>
+                        {row.antropometria?.resultados?.imc ?? "Pendiente"}
+                      </td>
+                      <td>
+                        <div className="d-flex flex-wrap gap-2">
+                          <CustomButton
+                            type="button"
+                            variant="outline-success"
+                            title="Ver consulta"
+                            aria-label="Ver consulta"
+                            onClick={() => navigate(`/consulta/${id}`)}
+                          >
+                            <BsEye size={16} />
+                          </CustomButton>
+                          <CustomButton
+                            type="button"
+                            variant="outline-primary"
+                            title="Editar consulta"
+                            aria-label="Editar consulta"
+                            onClick={() => navigate(`/consulta/${id}/editar`)}
+                          >
+                            <BsPencilSquare size={16} />
+                          </CustomButton>
+                          <CustomButton
+                            type="button"
+                            variant="outline-danger"
+                            title="Eliminar consulta"
+                            aria-label="Eliminar consulta"
+                            onClick={() => handleEliminar(id)}
+                          >
+                            <BsTrash size={16} />
+                          </CustomButton>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };

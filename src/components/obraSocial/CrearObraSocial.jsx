@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CustomInput } from "./ui/CustomInput";
-import { CustomSelect } from "./ui/CustomSelect";
-import { CustomButton } from "./ui/CustomButton";
-import clientesAxios from "../config/axios.js";
+import { CustomInput } from "../ui/CustomInput.jsx";
+import { CustomSelect } from "../ui/CustomSelect";
+import { CustomButton } from "../ui/CustomButton";
+import clientesAxios from "../../config/axios.js";
 
 export const CrearObraSocial = () => {
   const [formData, setFormData] = useState({

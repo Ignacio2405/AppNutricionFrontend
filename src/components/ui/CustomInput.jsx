@@ -1,5 +1,5 @@
-// src/components/ui/CustomInput.jsx
 import { useState } from "react";
+import { BsEye, BsEyeSlash } from "react-icons/bs";
 
 export const CustomInput = ({
   label,
@@ -32,10 +32,12 @@ export const CustomInput = ({
         {isPassword && (
           <button
             type="button"
-            className="btn btn-outline-secondary"
+            className="btn btn-outline-secondary d-flex align-items-center"
             onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+            title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
           >
-            {showPassword ? "Ocultar" : "Ver"}
+            {showPassword ? <BsEyeSlash size={18} /> : <BsEye size={18} />}
           </button>
         )}
 

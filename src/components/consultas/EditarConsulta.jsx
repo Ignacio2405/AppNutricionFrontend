@@ -41,7 +41,7 @@ export const EditarConsulta = () => {
   useEffect(() => {
     const fetchConsulta = async () => {
       try {
-        const { data } = await clientesAxios.get(`/consultas/${id}`);
+        const { data } = await clientesAxios.get(`/consulta/${id}`);
         const c = data.data || data.consulta || data;
         const m = c.antropometria?.mediciones || {};
 
@@ -105,9 +105,9 @@ export const EditarConsulta = () => {
         },
       };
 
-      await clientesAxios.put(`/consultas/${id}`, payload);
+      await clientesAxios.put(`/consulta/${id}`, payload);
       setSuccessMsg("¡Consulta actualizada correctamente!");
-      setTimeout(() => navigate(`/consultas/${id}`), 1500);
+      setTimeout(() => navigate(`/consulta/${id}`), 1500);
     } catch (err) {
       console.error(err);
       setErrorServer(

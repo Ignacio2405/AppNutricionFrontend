@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   BsPeople,
@@ -7,12 +7,30 @@ import {
   BsCalendarCheck,
   BsJournalMedical,
   BsCupHot,
+  BsClipboardPulse,
 } from "react-icons/bs";
+
+const ROLES = {
+  ADMIN: "ADMIN",
+  RECEPCIONISTA: "RECEPCIONISTA",
+  MEDICO: "MEDICO",
+  USER: "USER",
+  PACIENTE: "PACIENTE",
+};
+
+const TODOS_LOS_ROLES = [
+  ROLES.ADMIN,
+  ROLES.RECEPCIONISTA,
+  ROLES.MEDICO,
+  ROLES.USER,
+  ROLES.PACIENTE,
+];
 
 const SECCIONES_CONFIG = [
   {
     id: "pacientes-grupo",
     label: "Pacientes",
+    roles: TODOS_LOS_ROLES,
     icon: BsPeople,
     className: "",
     children: [
@@ -31,6 +49,7 @@ const SECCIONES_CONFIG = [
   {
     id: "medicos-grupo",
     label: "Médicos",
+    roles: [ROLES.ADMIN],
     icon: BsHeartPulse,
     className: "mt-1",
     children: [
@@ -41,6 +60,7 @@ const SECCIONES_CONFIG = [
   {
     id: "obras-sociales-grupo",
     label: "Obras Sociales",
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA],
     icon: BsCardChecklist,
     className: "mt-1",
     children: [
@@ -59,6 +79,7 @@ const SECCIONES_CONFIG = [
   {
     id: "consultas-grupo",
     label: "Consultas",
+    roles: [ROLES.ADMIN, ROLES.MEDICO],
     icon: BsCalendarCheck,
     className: "mt-1",
     children: [
@@ -73,6 +94,7 @@ const SECCIONES_CONFIG = [
   {
     id: "historial-medico-grupo",
     label: "Historiales Médicos",
+    roles: [ROLES.ADMIN, ROLES.MEDICO],
     icon: BsJournalMedical,
     className: "mt-1",
     children: [
@@ -91,11 +113,12 @@ const SECCIONES_CONFIG = [
   {
     id: "habitos-alimentarios-grupo",
     label: "Hábitos Alimentarios",
+    roles: [ROLES.ADMIN, ROLES.MEDICO],
     icon: BsCupHot,
     className: "mt-1",
     children: [
       {
-        id: "habitos-nuevo",
+        id: "habitos-lista",
         label: "Lista Hábitos",
         path: "/habitos-alimentarios",
       },
@@ -106,10 +129,130 @@ const SECCIONES_CONFIG = [
       },
     ],
   },
+  {
+    id: "resultados-laboratorio-grupo",
+    label: "Resultados de Laboratorio",
+    roles: [ROLES.ADMIN, ROLES.MEDICO],
+    icon: BsClipboardPulse,
+    className: "mt-1",
+    children: [
+      {
+        id: "laboratorio-lista",
+        label: "Lista de Laboratorios",
+        path: "/resultados-laboratorio",
+      },
+      {
+        id: "laboratorio-nuevo",
+        label: "Nuevo Laboratorio",
+        path: "/resultados-laboratorio/nuevo",
+      },
+    ],
+  },
+  {
+    id: "planes-comidas-grupo",
+    label: "Planes de Comidas",
+    roles: [ROLES.ADMIN, ROLES.MEDICO],
+    icon: BsCupHot,
+    className: "mt-1",
+    children: [
+      {
+        id: "planes-comidas-lista",
+        label: "Lista de Planes",
+        path: "/planes-comidas",
+      },
+      {
+        id: "planes-comidas-nuevo",
+        label: "Nuevo Plan",
+        path: "/planes-comidas/nuevo",
+      },
+    ],
+  },
 ];
+
+const ACCESOS_RAPIDOS = [
+  {
+    id: "quick-paciente",
+    label: "Nuevo Paciente",
+    path: "/pacientes/nuevo",
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA],
+  },
+  {
+    id: "quick-medico",
+    label: "Nuevo Médico",
+    path: "/medicos/nuevo",
+    roles: [ROLES.ADMIN],
+  },
+  {
+    id: "quick-obra",
+    label: "Nueva Obra Social",
+    path: "/obras-sociales/nueva",
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA],
+  },
+  {
+    id: "quick-consulta",
+    label: "Nueva Consulta",
+    path: "/consulta/nueva",
+    roles: [ROLES.ADMIN, ROLES.MEDICO],
+  },
+  {
+    id: "quick-historial",
+    label: "Nuevo Historial Médico",
+    path: "/historial-medico/nuevo",
+    roles: [ROLES.ADMIN, ROLES.MEDICO],
+  },
+];
+
+const obtenerUsuarioDesdeToken = () => {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const partes = token.split(".");
+    if (partes.length !== 3) return null;
+
+    const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+        .join(""),
+    );
+
+    const payload = JSON.parse(jsonPayload);
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+};
 
 export const NavBar = () => {
   const navigate = useNavigate();
+
+  const usuario = useMemo(() => obtenerUsuarioDesdeToken(), []);
+  const rolUsuario = (usuario?.rol || "").toString().toUpperCase();
+
+  const tienePermiso = (rolesPermitidos) => {
+    if (!Array.isArray(rolesPermitidos) || rolesPermitidos.length === 0) {
+      return true;
+    }
+    return rolesPermitidos.map((r) => r.toUpperCase()).includes(rolUsuario);
+  };
+
+  const seccionesVisibles = useMemo(
+    () => SECCIONES_CONFIG.filter((sec) => tienePermiso(sec.roles)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rolUsuario],
+  );
+
+  const accesosVisibles = useMemo(
+    () => ACCESOS_RAPIDOS.filter((item) => tienePermiso(item.roles)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rolUsuario],
+  );
 
   const [openSections, setOpenSections] = useState(() =>
     SECCIONES_CONFIG.reduce((acc, sec) => {
@@ -181,7 +324,7 @@ export const NavBar = () => {
         <hr className="d-none d-md-block border-dark" />
 
         <ul className="nav nav-pills flex-column mb-auto">
-          {SECCIONES_CONFIG.map((sec) => {
+          {seccionesVisibles.map((sec) => {
             const IconComponent = sec.icon;
             const isOpen = Boolean(openSections[sec.id]);
             const firstChildPath = sec.children?.[0]?.path;
@@ -286,41 +429,25 @@ export const NavBar = () => {
               height="32"
               className="rounded-circle me-2"
             />
-            <strong>Usuario</strong>
+            <strong>{usuario?.user || "Usuario"}</strong>
           </a>
 
           <ul
             className="dropdown-menu dropdown-menu-dark text-small shadow"
             aria-labelledby="dropdownUser1"
           >
-            <li>
-              <Link className="dropdown-item" to="/pacientes/nuevo">
-                Nuevo Paciente
-              </Link>
-            </li>
-            <li>
-              <Link className="dropdown-item" to="/medicos/nuevo">
-                Nuevo Médico
-              </Link>
-            </li>
-            <li>
-              <Link className="dropdown-item" to="/obras-sociales/nueva">
-                Nueva Obra Social
-              </Link>
-            </li>
-            <li>
-              <Link className="dropdown-item" to="/consulta/nueva">
-                Nueva Consulta
-              </Link>
-            </li>
-            <li>
-              <Link className="dropdown-item" to="/historial-medico/nuevo">
-                Nuevo Historial Médico
-              </Link>
-            </li>
-            <li>
-              <hr className="dropdown-divider" />
-            </li>
+            {accesosVisibles.map((item) => (
+              <li key={item.id}>
+                <Link className="dropdown-item" to={item.path}>
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+            {accesosVisibles.length > 0 && (
+              <li>
+                <hr className="dropdown-divider" />
+              </li>
+            )}
             <li>
               <button className="dropdown-item" onClick={handleLogout}>
                 Cerrar sesión
