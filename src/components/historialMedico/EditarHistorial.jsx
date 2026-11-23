@@ -59,6 +59,8 @@ export const EditarHistorial = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let activo = true;
+
     const cargarDatos = async () => {
       try {
         setCargandoDatos(true);
@@ -66,6 +68,8 @@ export const EditarHistorial = () => {
           clientesAxios.get(`/historial-medico/${id}`),
           clientesAxios.get("/pacientes"),
         ]);
+
+        if (!activo) return;
 
         const h = resHistorial.data?.data || resHistorial.data;
         const listaPacientes = Array.isArray(resPacientes.data)
@@ -113,14 +117,18 @@ export const EditarHistorial = () => {
             h.observacionesGinecoObstetricas || "",
         });
       } catch (err) {
+        if (!activo) return;
         console.error("Error al cargar historial:", err);
         setErrorServer("No se pudo cargar el historial médico.");
       } finally {
-        setCargandoDatos(false);
+        if (activo) setCargandoDatos(false);
       }
     };
 
     cargarDatos();
+    return () => {
+      activo = false;
+    };
   }, [id]);
 
   const handleChange = (e) => {
@@ -224,6 +232,7 @@ export const EditarHistorial = () => {
 
       await clientesAxios.put(`/historial-medico/${id}`, payload);
       setSuccessMsg("¡Historial médico actualizado con éxito!");
+      window.scrollTo({ top: 0, behavior: "smooth" });
       setTimeout(() => navigate("/historial-medico"), 1500);
     } catch (err) {
       console.error(err);
@@ -232,6 +241,7 @@ export const EditarHistorial = () => {
           err.response?.data?.error ||
           "Error al actualizar el historial médico.",
       );
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setLoading(false);
     }
@@ -303,55 +313,12 @@ export const EditarHistorial = () => {
 
           <hr className="my-3" />
           <MedicamentosFormList
-            idPrefix="crear-med"
+            idPrefix="editar-med"
             items={formData.medicamentosSuplementos}
             onItemChange={handleMedicamentoChange}
             onAdd={agregarMedicamento}
             onRemove={quitarMedicamento}
           />
-          {formData.medicamentosSuplementos.map((med, index) => (
-            <div className="row align-items-end mb-2" key={index}>
-              <div className="col-md-4">
-                <CustomInput
-                  label={index === 0 ? "Nombre" : undefined}
-                  name={`edit-med-nombre-${index}`}
-                  value={med.nombre}
-                  onChange={(e) =>
-                    handleMedicamentoChange(index, "nombre", e.target.value)
-                  }
-                />
-              </div>
-              <div className="col-md-3">
-                <CustomInput
-                  label={index === 0 ? "Dosis" : undefined}
-                  name={`edit-med-dosis-${index}`}
-                  value={med.dosis}
-                  onChange={(e) =>
-                    handleMedicamentoChange(index, "dosis", e.target.value)
-                  }
-                />
-              </div>
-              <div className="col-md-3">
-                <CustomInput
-                  label={index === 0 ? "Frecuencia" : undefined}
-                  name={`edit-med-frecuencia-${index}`}
-                  value={med.frecuencia}
-                  onChange={(e) =>
-                    handleMedicamentoChange(index, "frecuencia", e.target.value)
-                  }
-                />
-              </div>
-              <div className="col-md-2 mb-3">
-                <CustomButton
-                  type="button"
-                  variant="outline-danger"
-                  onClick={() => quitarMedicamento(index)}
-                >
-                  Quitar
-                </CustomButton>
-              </div>
-            </div>
-          ))}
 
           <hr className="my-3" />
           <h6 className="fw-semibold text-secondary mb-3">Salud Digestiva</h6>

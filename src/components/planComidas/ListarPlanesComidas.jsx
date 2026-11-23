@@ -180,7 +180,7 @@ export const ListarPlanesComidas = () => {
                           title="Editar plan"
                           aria-label="Editar plan"
                           onClick={() =>
-                            navigate(`/planes-comidas/editar/${row._id}`)
+                            navigate(`/planes-comidas/${row._id}/editar`)
                           }
                         >
                           <BsPencilSquare size={16} />

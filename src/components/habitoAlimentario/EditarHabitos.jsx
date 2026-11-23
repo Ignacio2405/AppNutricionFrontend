@@ -104,7 +104,7 @@ export const EditarHabitos = () => {
         horasSuenoNocturno: Number(formData.horasSuenoNocturno),
       };
 
-      await clientesAxios.put(`/habitos/${id}`, payload);
+      await clientesAxios.put(`/habitos/actualizar/${id}`, payload);
       navigate("/habitos-alimentarios");
     } catch (err) {
       console.error("Error al actualizar hábitos alimentarios:", err);

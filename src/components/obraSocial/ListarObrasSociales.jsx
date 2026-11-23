@@ -57,10 +57,20 @@ export const ListarObrasSociales = () => {
 
   const formatearTelefono = (telefono) => {
     if (!telefono) return "—";
-    if (typeof telefono === "string") return telefono || "—";
-    return (
-      [telefono.codigoArea, telefono.numero].filter(Boolean).join("-") || "—"
-    );
+    if (typeof telefono === "string") return telefono.trim() || "—";
+
+    const lista = Array.isArray(telefono) ? telefono : [telefono];
+    const formateados = lista
+      .map((tel) => {
+        if (!tel) return "";
+        if (typeof tel === "string") return tel.trim();
+        const codigo = tel.codigoArea || tel.prefijo || "";
+        const num = tel.numero || tel.telefono || "";
+        return [codigo, num].filter(Boolean).join("-");
+      })
+      .filter(Boolean);
+
+    return formateados.length > 0 ? formateados.join(", ") : "—";
   };
 
   const obrasFiltradas = useMemo(() => {

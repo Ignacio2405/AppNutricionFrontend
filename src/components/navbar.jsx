@@ -8,6 +8,7 @@ import {
   BsJournalMedical,
   BsCupHot,
   BsClipboardPulse,
+  BsCheck2Circle,
 } from "react-icons/bs";
 
 const ROLES = {
@@ -167,6 +168,25 @@ const SECCIONES_CONFIG = [
       },
     ],
   },
+  {
+    id: "metas-objetivos-grupo",
+    label: "Metas y Objetivos",
+    roles: [ROLES.ADMIN, ROLES.MEDICO, ROLES.PACIENTE],
+    icon: BsCheck2Circle,
+    className: "mt-1",
+    children: [
+      {
+        id: "metas-objetivos-lista",
+        label: "Lista de Metas",
+        path: "/metas-objetivos",
+      },
+      {
+        id: "metas-objetivos-nuevo",
+        label: "Nuevas Metas",
+        path: "/metas-objetivos/nuevo",
+      },
+    ],
+  },
 ];
 
 const ACCESOS_RAPIDOS = [
@@ -198,6 +218,12 @@ const ACCESOS_RAPIDOS = [
     id: "quick-historial",
     label: "Nuevo Historial Médico",
     path: "/historial-medico/nuevo",
+    roles: [ROLES.ADMIN, ROLES.MEDICO],
+  },
+  {
+    id: "quick-metas",
+    label: "Nuevas Metas y Objetivos",
+    path: "/metas-objetivos/nuevo",
     roles: [ROLES.ADMIN, ROLES.MEDICO],
   },
 ];
@@ -254,18 +280,11 @@ export const NavBar = () => {
     [rolUsuario],
   );
 
-  const [openSections, setOpenSections] = useState(() =>
-    SECCIONES_CONFIG.reduce((acc, sec) => {
-      acc[sec.id] = false;
-      return acc;
-    }, {}),
-  );
+  // Solo un ítem abierto a la vez; null si todos están cerrados
+  const [openSectionId, setOpenSectionId] = useState(null);
 
   const toggleSection = (id) => {
-    setOpenSections((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setOpenSectionId((prev) => (prev === id ? null : id));
   };
 
   const handleLogout = (e) => {
@@ -278,7 +297,7 @@ export const NavBar = () => {
     <>
       <nav className="navbar navbar-light custom-sidebar d-md-none px-3 w-100 sticky-top">
         <Link to="/" className="navbar-brand d-flex align-items-center">
-          <img src="/LogoVerde.png" alt="Logo CulA Nutrición" width="100" />
+          <img src="/LogoVerde.png" alt="Logo CulA Nutrición" width="80" />
         </Link>
         <button
           className="navbar-toggler border-dark"
@@ -326,7 +345,7 @@ export const NavBar = () => {
         <ul className="nav nav-pills flex-column mb-auto">
           {seccionesVisibles.map((sec) => {
             const IconComponent = sec.icon;
-            const isOpen = Boolean(openSections[sec.id]);
+            const isOpen = openSectionId === sec.id;
             const firstChildPath = sec.children?.[0]?.path;
 
             return (
@@ -336,6 +355,7 @@ export const NavBar = () => {
                     <NavLink
                       to={firstChildPath}
                       end
+                      onClick={() => setOpenSectionId(sec.id)}
                       className={({ isActive }) =>
                         `nav-link d-flex align-items-center text-dark fw-medium flex-grow-1 ${
                           isActive ? "active bg-secondary text-white" : ""

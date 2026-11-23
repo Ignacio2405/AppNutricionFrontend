@@ -10,11 +10,12 @@ const ADVERTENCIAS_DEFAULT = [
   "Las hortalizas y frutas que se ingieren crudas, se recomienda lavarlas con abundante agua segura, después de una correcta higiene de manos. Si se fraccionan sobre tablas, que las mismas, sean exclusivas para estos alimentos, o bien utilizar otro elemento que NO sea de madera ni de plástico.",
 ];
 
-const filaVacia = () => ({
-  categoria: "",
-  seleccion: "",
-  metodoPreparacion: "",
-});
+const extraerId = (campo) => {
+  if (!campo) return "";
+  return typeof campo === "object"
+    ? String(campo._id || campo.id || "")
+    : String(campo);
+};
 
 const toInputDate = (valor) => {
   if (!valor) return "";
@@ -23,37 +24,63 @@ const toInputDate = (valor) => {
   return d.toISOString().split("T")[0];
 };
 
-const extraerId = (campo) => {
-  if (!campo) return "";
-  return typeof campo === "object" ? campo._id || "" : campo;
+const formatearEtiquetaConsulta = (consulta) => {
+  const fechaTexto = consulta.fecha ? toInputDate(consulta.fecha) : "";
+  const horaTexto = consulta.hora ? ` ${consulta.hora}` : "";
+  const detalle =
+    consulta.observaciones || consulta.motivo || "Consulta médica";
+  const fechaHora = `${fechaTexto}${horaTexto}`.trim();
+
+  return fechaHora ? `${fechaHora} — ${detalle}` : detalle;
+};
+
+const filaAlimentoVacia = () => ({
+  categoria: "",
+  seleccion: "",
+  metodoPreparacion: "",
+});
+
+const parsearNumeroOpcional = (valor) => {
+  if (valor === "" || valor === null || valor === undefined) return null;
+  const num = Number(valor);
+  return Number.isNaN(num) ? null : num;
 };
 
 export const FormularioPlanComidas = ({
-  tituloFormulario = "Registrar Plan de Comidas",
   initialData = null,
   onSubmit,
   onCancel,
   submitting = false,
-  submitLabel = "Guardar Plan",
+  submitLabel = "Crear Plan de Comidas",
 }) => {
-  const [pacientes, setPacientes] = useState([]);
-  const [consultas, setConsultas] = useState([]);
+  const pacienteInicial = extraerId(
+    initialData?.patientId || initialData?.pacienteId || initialData?.paciente,
+  );
 
-  const [patientId, setPatientId] = useState(() =>
-    extraerId(initialData?.patientId),
+  const [pacientes, setPacientes] = useState([]);
+  const [consultasPaciente, setConsultasPaciente] = useState([]);
+  const [cargandoConsultas, setCargandoConsultas] = useState(() =>
+    Boolean(pacienteInicial),
   );
+
+  const [patientId, setPatientId] = useState(pacienteInicial);
   const [consultationId, setConsultationId] = useState(() =>
-    extraerId(initialData?.consultationId),
+    extraerId(
+      initialData?.consultationId ||
+        initialData?.consultaId ||
+        initialData?.consulta,
+    ),
   );
+
   const [titulo, setTitulo] = useState(() => initialData?.titulo || "");
   const [fechaEntrega, setFechaEntrega] = useState(
     () => toInputDate(initialData?.fechaEntrega) || toInputDate(new Date()),
   );
   const [fechaInicioVigencia, setFechaInicioVigencia] = useState(() =>
-    toInputDate(initialData?.fechaInicioVigencia),
+    toInputDate(initialData?.fechaInicioVigencia || initialData?.fechaInicio),
   );
   const [fechaFinRevision, setFechaFinRevision] = useState(() =>
-    toInputDate(initialData?.fechaFinRevision),
+    toInputDate(initialData?.fechaFinRevision || initialData?.fechaFin),
   );
   const [planActivo, setPlanActivo] = useState(() =>
     initialData?.planActivo !== undefined
@@ -61,114 +88,166 @@ export const FormularioPlanComidas = ({
       : true,
   );
 
-  const [objetivosMacros, setObjetivosMacros] = useState(() => ({
-    caloriasDiarias: initialData?.objetivosMacros?.caloriasDiarias ?? "",
-    proteinasGramos: initialData?.objetivosMacros?.proteinasGramos ?? "",
-    carbohidratosGramos:
-      initialData?.objetivosMacros?.carbohidratosGramos ?? "",
-    grasasGramos: initialData?.objetivosMacros?.grasasGramos ?? "",
-  }));
+  const [caloriasDiarias, setCaloriasDiarias] = useState(() =>
+    initialData?.objetivosMacros?.caloriasDiarias !== undefined &&
+    initialData?.objetivosMacros?.caloriasDiarias !== null
+      ? String(initialData.objetivosMacros.caloriasDiarias)
+      : "",
+  );
+  const [proteinasGramos, setProteinasGramos] = useState(() =>
+    initialData?.objetivosMacros?.proteinasGramos !== undefined &&
+    initialData?.objetivosMacros?.proteinasGramos !== null
+      ? String(initialData.objetivosMacros.proteinasGramos)
+      : "",
+  );
+  const [carbohidratosGramos, setCarbohidratosGramos] = useState(() =>
+    initialData?.objetivosMacros?.carbohidratosGramos !== undefined &&
+    initialData?.objetivosMacros?.carbohidratosGramos !== null
+      ? String(initialData.objetivosMacros.carbohidratosGramos)
+      : "",
+  );
+  const [grasasGramos, setGrasasGramos] = useState(() =>
+    initialData?.objetivosMacros?.grasasGramos !== undefined &&
+    initialData?.objetivosMacros?.grasasGramos !== null
+      ? String(initialData.objetivosMacros.grasasGramos)
+      : "",
+  );
 
   const [grupoDeAlimentos, setGrupoDeAlimentos] = useState(() =>
     Array.isArray(initialData?.grupoDeAlimentos) &&
     initialData.grupoDeAlimentos.length > 0
-      ? initialData.grupoDeAlimentos.map((f) => ({
-          categoria: f.categoria || "",
-          seleccion: f.seleccion || "",
-          metodoPreparacion: f.metodoPreparacion || "",
+      ? initialData.grupoDeAlimentos.map((item) => ({
+          categoria: item.categoria || "",
+          seleccion: item.seleccion || "",
+          metodoPreparacion: item.metodoPreparacion || "",
         }))
-      : [filaVacia()],
+      : [filaAlimentoVacia()],
   );
 
   const [advertencias, setAdvertencias] = useState(() =>
-    Array.isArray(initialData?.advertencias)
+    Array.isArray(initialData?.advertencias) &&
+    initialData.advertencias.length > 0
       ? initialData.advertencias
       : ADVERTENCIAS_DEFAULT,
   );
   const [nuevaAdvertencia, setNuevaAdvertencia] = useState("");
   const [errorLocal, setErrorLocal] = useState("");
 
+  // 1. Cargar pacientes
   useEffect(() => {
-    let ignore = false;
+    let activo = true;
 
-    const cargarCatalogos = async () => {
+    const cargarPacientes = async () => {
       try {
-        const [resPac, resCons] = await Promise.all([
-          clientesAxios.get("/pacientes"),
-          clientesAxios.get("/consulta").catch(() => ({ data: [] })),
-        ]);
-        if (ignore) return;
+        const { data } = await clientesAxios.get("/pacientes");
+        if (!activo) return;
 
-        const listaPac = Array.isArray(resPac.data)
-          ? resPac.data
-          : resPac.data?.data || [];
-        const listaCons = Array.isArray(resCons.data)
-          ? resCons.data
-          : resCons.data?.data || [];
-        setPacientes(listaPac);
-        setConsultas(listaCons);
-      } catch {
-        // Continúa aunque falle algún catálogo
+        const lista = Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.pacientes)
+            ? data.pacientes
+            : Array.isArray(data)
+              ? data
+              : [];
+
+        setPacientes(lista);
+      } catch (err) {
+        console.error("Error al cargar pacientes:", err);
       }
     };
 
-    cargarCatalogos();
+    cargarPacientes();
     return () => {
-      ignore = true;
+      activo = false;
     };
   }, []);
 
+  // 2. Cargar consultas del paciente seleccionado (opcional)
+  useEffect(() => {
+    if (!patientId) return;
+
+    let activo = true;
+
+    const cargarConsultasDelPaciente = async () => {
+      try {
+        const { data } = await clientesAxios.get("/consulta", {
+          params: { pacienteId: patientId },
+        });
+        if (!activo) return;
+
+        const lista = Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.consultas)
+            ? data.consultas
+            : Array.isArray(data)
+              ? data
+              : [];
+
+        const filtradas = lista.filter(
+          (c) => extraerId(c.paciente || c.pacienteId) === String(patientId),
+        );
+
+        setConsultasPaciente(filtradas);
+      } catch (err) {
+        if (!activo) return;
+        console.warn("No se pudieron cargar consultas del paciente:", err);
+        setConsultasPaciente([]);
+      } finally {
+        if (activo) setCargandoConsultas(false);
+      }
+    };
+
+    cargarConsultasDelPaciente();
+    return () => {
+      activo = false;
+    };
+  }, [patientId]);
+
   const opcionesPacientes = useMemo(
     () =>
-      pacientes.map((pac) => ({
-        value: pac._id,
-        label: `${`${pac.nombre || ""} ${pac.apellido || ""}`.trim()}${
-          pac.dni ? ` (DNI ${pac.dni})` : ""
+      pacientes.map((p) => ({
+        value: String(p._id),
+        label: `${p.apellido || ""}, ${p.nombre || ""}${
+          p.dni ? ` (DNI: ${p.dni})` : ""
         }`,
       })),
     [pacientes],
   );
 
-  const opcionesConsultas = useMemo(() => {
-    const filtradas = patientId
-      ? consultas.filter(
-          (c) =>
-            !c.patientId ||
-            String(extraerId(c.patientId)) === String(patientId),
-        )
-      : consultas;
+  const opcionesConsultas = useMemo(
+    () =>
+      consultasPaciente.map((c) => ({
+        value: String(c._id),
+        label: formatearEtiquetaConsulta(c),
+      })),
+    [consultasPaciente],
+  );
 
-    return filtradas.map((cons) => {
-      const fecha = cons.fecha ? toInputDate(cons.fecha) : "";
-      const detalle =
-        cons.motivo || cons.observaciones || cons.diagnostico || "Consulta";
-      return {
-        value: cons._id,
-        label: fecha ? `${fecha} - ${detalle}` : detalle,
-      };
-    });
-  }, [consultas, patientId]);
-
-  const handleMacroChange = (e) => {
-    const { name, value } = e.target;
-    setObjetivosMacros((prev) => ({ ...prev, [name]: value }));
+  const handlePacienteChange = (e) => {
+    const nuevoPacienteId = String(e.target.value || "");
+    setPatientId(nuevoPacienteId);
+    setConsultationId("");
+    setConsultasPaciente([]);
+    setCargandoConsultas(Boolean(nuevoPacienteId));
   };
 
-  const handleFilaChange = (index, field, value) => {
+  const handleAlimentoChange = (index, campo, valor) => {
     setGrupoDeAlimentos((prev) =>
-      prev.map((fila, idx) =>
-        idx === index ? { ...fila, [field]: value } : fila,
+      prev.map((item, idx) =>
+        idx === index ? { ...item, [campo]: valor } : item,
       ),
     );
   };
 
-  const agregarFila = () => {
-    setGrupoDeAlimentos((prev) => [...prev, filaVacia()]);
+  const agregarFilaAlimento = () => {
+    setGrupoDeAlimentos((prev) => [...prev, filaAlimentoVacia()]);
   };
 
-  const quitarFila = (index) => {
+  const quitarFilaAlimento = (index) => {
     setGrupoDeAlimentos((prev) =>
-      prev.length > 1 ? prev.filter((_, idx) => idx !== index) : [filaVacia()],
+      prev.length > 1
+        ? prev.filter((_, idx) => idx !== index)
+        : [filaAlimentoVacia()],
     );
   };
 
@@ -183,30 +262,32 @@ export const FormularioPlanComidas = ({
     setAdvertencias((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  const handleFormSubmit = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setErrorLocal("");
 
     if (!patientId) {
-      setErrorLocal("Seleccioná un paciente.");
-      return;
-    }
-    if (!titulo.trim()) {
-      setErrorLocal("Ingresá un título para el plan de comidas.");
-      return;
-    }
-    if (!fechaInicioVigencia) {
-      setErrorLocal("Indicá la fecha de inicio de vigencia.");
+      setErrorLocal("Seleccioná un paciente para el plan de comidas.");
       return;
     }
 
-    const filasLimpias = grupoDeAlimentos
-      .filter((f) => f.categoria.trim() && f.seleccion.trim())
-      .map((f) => ({
-        categoria: f.categoria.trim().toUpperCase(),
-        seleccion: f.seleccion.trim(),
-        metodoPreparacion: f.metodoPreparacion.trim(),
-      }));
+    if (!titulo.trim()) {
+      setErrorLocal("Ingresá el título del plan de comidas.");
+      return;
+    }
+
+    if (!fechaInicioVigencia) {
+      setErrorLocal("Seleccioná la fecha de inicio de vigencia.");
+      return;
+    }
+
+    const alimentosLimpios = grupoDeAlimentos
+      .map((item) => ({
+        categoria: item.categoria.trim().toUpperCase(),
+        seleccion: item.seleccion.trim(),
+        metodoPreparacion: item.metodoPreparacion.trim(),
+      }))
+      .filter((item) => item.categoria && item.seleccion);
 
     const payload = {
       patientId,
@@ -217,24 +298,12 @@ export const FormularioPlanComidas = ({
       fechaFinRevision: fechaFinRevision || null,
       planActivo,
       objetivosMacros: {
-        caloriasDiarias:
-          objetivosMacros.caloriasDiarias !== ""
-            ? Number(objetivosMacros.caloriasDiarias)
-            : null,
-        proteinasGramos:
-          objetivosMacros.proteinasGramos !== ""
-            ? Number(objetivosMacros.proteinasGramos)
-            : null,
-        carbohidratosGramos:
-          objetivosMacros.carbohidratosGramos !== ""
-            ? Number(objetivosMacros.carbohidratosGramos)
-            : null,
-        grasasGramos:
-          objetivosMacros.grasasGramos !== ""
-            ? Number(objetivosMacros.grasasGramos)
-            : null,
+        caloriasDiarias: parsearNumeroOpcional(caloriasDiarias),
+        proteinasGramos: parsearNumeroOpcional(proteinasGramos),
+        carbohidratosGramos: parsearNumeroOpcional(carbohidratosGramos),
+        grasasGramos: parsearNumeroOpcional(grasasGramos),
       },
-      grupoDeAlimentos: filasLimpias,
+      grupoDeAlimentos: alimentosLimpios,
       advertencias,
     };
 
@@ -242,300 +311,324 @@ export const FormularioPlanComidas = ({
   };
 
   return (
-    <div className="container py-4">
-      <div className="card shadow-sm border-0 p-4 rounded-4">
-        <h3 className="fw-bold text-success mb-4">{tituloFormulario}</h3>
+    <div className="card shadow-sm border-0 p-4 rounded-4">
+      <h4 className="fw-bold text-success mb-4">Registrar Plan de Comidas</h4>
 
-        {errorLocal && (
-          <div className="alert alert-danger py-2 small mb-3" role="alert">
-            {errorLocal}
-          </div>
-        )}
+      {errorLocal && (
+        <div className="alert alert-danger py-2 small mb-3" role="alert">
+          {errorLocal}
+        </div>
+      )}
 
-        <form onSubmit={handleFormSubmit}>
-          {/* Datos generales y vigencia */}
-          <div className="row g-3">
-            <div className="col-md-6">
-              <CustomSelect
-                id="patientId"
-                name="patientId"
-                label="Paciente *"
-                value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-                options={opcionesPacientes}
-                required
-              />
-            </div>
-
-            <div className="col-md-6">
-              <CustomSelect
-                id="consultationId"
-                name="consultationId"
-                label="Consulta asociada (opcional)"
-                value={consultationId}
-                onChange={(e) => setConsultationId(e.target.value)}
-                options={opcionesConsultas}
-                placeholder="Buscar consulta o dejar vacío..."
-              />
-            </div>
-
-            <div className="col-12">
-              <CustomInput
-                id="tituloPlan"
-                label="Título del plan *"
-                placeholder="Ej: Plan hipocalórico, normoproteico y preventivo..."
-                value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="col-md-4">
-              <CustomInput
-                id="fechaEntrega"
-                label="Fecha de entrega"
-                type="date"
-                value={fechaEntrega}
-                onChange={(e) => setFechaEntrega(e.target.value)}
-              />
-            </div>
-
-            <div className="col-md-4">
-              <CustomInput
-                id="fechaInicioVigencia"
-                label="Inicio de vigencia *"
-                type="date"
-                value={fechaInicioVigencia}
-                onChange={(e) => setFechaInicioVigencia(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="col-md-4">
-              <CustomInput
-                id="fechaFinRevision"
-                label="Revisión / Fin estimado"
-                type="date"
-                value={fechaFinRevision}
-                onChange={(e) => setFechaFinRevision(e.target.value)}
-              />
-            </div>
-
-            <div className="col-12">
-              <div className="form-check mb-2">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="planActivoCheck"
-                  checked={planActivo}
-                  onChange={(e) => setPlanActivo(e.target.checked)}
-                />
-                <label
-                  className="form-check-label fw-medium"
-                  htmlFor="planActivoCheck"
-                >
-                  Marcar como plan activo vigente del paciente
-                </label>
-              </div>
-            </div>
+      <form onSubmit={handleSubmit}>
+        {/* Paciente y Consulta asociada */}
+        <div className="row g-3 mb-2">
+          <div className="col-md-6">
+            <CustomSelect
+              id="patientId"
+              name="patientId"
+              label="Paciente *"
+              value={patientId}
+              onChange={handlePacienteChange}
+              options={opcionesPacientes}
+              placeholder="Escriba para buscar o seleccione..."
+              required
+            />
           </div>
 
-          <hr className="my-4" />
+          <div className="col-md-6">
+            <CustomSelect
+              id="consultationId"
+              name="consultationId"
+              label={
+                cargandoConsultas
+                  ? "Consulta asociada (cargando...)"
+                  : "Consulta asociada (opcional)"
+              }
+              value={consultationId}
+              onChange={(e) => setConsultationId(e.target.value)}
+              options={opcionesConsultas}
+              disabled={!patientId || cargandoConsultas}
+              placeholder={
+                !patientId
+                  ? "Buscar consulta o dejar vacío..."
+                  : opcionesConsultas.length === 0
+                    ? "Sin consultas asociadas (opcional)"
+                    : "Buscar consulta o dejar vacío..."
+              }
+            />
+          </div>
+        </div>
 
-          {/* Objetivos diarios de macronutrientes */}
-          <h6 className="fw-semibold text-secondary mb-3">
-            Objetivos Diarios de Macronutrientes
+        {/* Título del plan */}
+        <CustomInput
+          id="titulo"
+          name="titulo"
+          label="Título del plan *"
+          placeholder="Ej: Plan hipocalórico, normoproteico y preventivo..."
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          required
+        />
+
+        {/* Fechas */}
+        <div className="row g-3 mb-2">
+          <div className="col-md-4">
+            <CustomInput
+              id="fechaEntrega"
+              name="fechaEntrega"
+              label="Fecha de entrega"
+              type="date"
+              value={fechaEntrega}
+              onChange={(e) => setFechaEntrega(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-4">
+            <CustomInput
+              id="fechaInicioVigencia"
+              name="fechaInicioVigencia"
+              label="Inicio de vigencia *"
+              type="date"
+              value={fechaInicioVigencia}
+              onChange={(e) => setFechaInicioVigencia(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="col-md-4">
+            <CustomInput
+              id="fechaFinRevision"
+              name="fechaFinRevision"
+              label="Revisión / Fin estimado"
+              type="date"
+              value={fechaFinRevision}
+              onChange={(e) => setFechaFinRevision(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Plan activo */}
+        <div className="form-check mb-4">
+          <input
+            id="planActivo"
+            name="planActivo"
+            type="checkbox"
+            className="form-check-input"
+            checked={planActivo}
+            onChange={(e) => setPlanActivo(e.target.checked)}
+          />
+          <label htmlFor="planActivo" className="form-check-label">
+            Marcar como plan activo vigente del paciente
+          </label>
+        </div>
+
+        <hr className="my-4" />
+
+        {/* Objetivos diarios de macronutrientes */}
+        <h6 className="fw-semibold text-secondary mb-3">
+          Objetivos Diarios de Macronutrientes
+        </h6>
+        <div className="row g-3 mb-3">
+          <div className="col-md-3">
+            <CustomInput
+              id="caloriasDiarias"
+              name="caloriasDiarias"
+              label="Calorías (kcal)"
+              type="number"
+              min="0"
+              placeholder="Ej: 1800"
+              value={caloriasDiarias}
+              onChange={(e) => setCaloriasDiarias(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-3">
+            <CustomInput
+              id="proteinasGramos"
+              name="proteinasGramos"
+              label="Proteínas (g)"
+              type="number"
+              min="0"
+              placeholder="Ej: 95"
+              value={proteinasGramos}
+              onChange={(e) => setProteinasGramos(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-3">
+            <CustomInput
+              id="carbohidratosGramos"
+              name="carbohidratosGramos"
+              label="Carbohidratos (g)"
+              type="number"
+              min="0"
+              placeholder="Ej: 200"
+              value={carbohidratosGramos}
+              onChange={(e) => setCarbohidratosGramos(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-3">
+            <CustomInput
+              id="grasasGramos"
+              name="grasasGramos"
+              label="Grasas (g)"
+              type="number"
+              min="0"
+              placeholder="Ej: 55"
+              value={grasasGramos}
+              onChange={(e) => setGrasasGramos(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <hr className="my-4" />
+
+        {/* Grupos de alimentos */}
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h6 className="fw-semibold text-secondary mb-0">
+            Grupos de Alimentos
           </h6>
-          <div className="row g-3">
-            <div className="col-sm-6 col-md-3">
+          <CustomButton
+            type="button"
+            variant="outline-success"
+            onClick={agregarFilaAlimento}
+          >
+            + Agregar fila
+          </CustomButton>
+        </div>
+
+        {grupoDeAlimentos.map((fila, index) => (
+          <div className="row g-2 align-items-end mb-2" key={`fila-${index}`}>
+            <div className="col-md-3">
               <CustomInput
-                id="caloriasDiarias"
-                name="caloriasDiarias"
-                label="Calorías (kcal)"
-                type="number"
-                min="0"
-                placeholder="Ej: 1800"
-                value={objetivosMacros.caloriasDiarias}
-                onChange={handleMacroChange}
+                id={`categoria-${index}`}
+                name={`categoria-${index}`}
+                label={index === 0 ? "Categoría" : undefined}
+                placeholder="YOGURT/LECHE, CARNE..."
+                value={fila.categoria}
+                onChange={(e) =>
+                  handleAlimentoChange(index, "categoria", e.target.value)
+                }
+                className="mb-2"
               />
             </div>
 
-            <div className="col-sm-6 col-md-3">
+            <div className="col-md-4">
               <CustomInput
-                id="proteinasGramos"
-                name="proteinasGramos"
-                label="Proteínas (g)"
-                type="number"
-                min="0"
-                step="0.1"
-                placeholder="Ej: 95"
-                value={objetivosMacros.proteinasGramos}
-                onChange={handleMacroChange}
+                id={`seleccion-${index}`}
+                name={`seleccion-${index}`}
+                label={index === 0 ? "Selección" : undefined}
+                placeholder="Preferentemente descremado..."
+                value={fila.seleccion}
+                onChange={(e) =>
+                  handleAlimentoChange(index, "seleccion", e.target.value)
+                }
+                className="mb-2"
               />
             </div>
 
-            <div className="col-sm-6 col-md-3">
+            <div className="col-md-4">
               <CustomInput
-                id="carbohidratosGramos"
-                name="carbohidratosGramos"
-                label="Carbohidratos (g)"
-                type="number"
-                min="0"
-                step="0.1"
-                placeholder="Ej: 200"
-                value={objetivosMacros.carbohidratosGramos}
-                onChange={handleMacroChange}
+                id={`metodoPreparacion-${index}`}
+                name={`metodoPreparacion-${index}`}
+                label={index === 0 ? "Método de preparación" : undefined}
+                placeholder="Solo, con frutas, al horno..."
+                value={fila.metodoPreparacion}
+                onChange={(e) =>
+                  handleAlimentoChange(
+                    index,
+                    "metodoPreparacion",
+                    e.target.value,
+                  )
+                }
+                className="mb-2"
               />
             </div>
 
-            <div className="col-sm-6 col-md-3">
-              <CustomInput
-                id="grasasGramos"
-                name="grasasGramos"
-                label="Grasas (g)"
-                type="number"
-                min="0"
-                step="0.1"
-                placeholder="Ej: 55"
-                value={objetivosMacros.grasasGramos}
-                onChange={handleMacroChange}
-              />
+            <div className="col-md-1 mb-2">
+              <CustomButton
+                type="button"
+                variant="danger"
+                fullWidth
+                onClick={() => quitarFilaAlimento(index)}
+                title="Quitar fila"
+              >
+                ✕
+              </CustomButton>
             </div>
           </div>
+        ))}
 
-          <hr className="my-4" />
+        <hr className="my-4" />
 
-          {/* Grupos de alimentos */}
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h6 className="fw-semibold text-secondary m-0">
-              Grupos de Alimentos
-            </h6>
-            <CustomButton
-              variant="outline"
-              className="btn-sm"
-              onClick={agregarFila}
-            >
-              + Agregar fila
-            </CustomButton>
-          </div>
+        {/* Advertencias y recomendaciones */}
+        <h6 className="fw-semibold text-secondary mb-3">
+          Advertencias y Recomendaciones
+        </h6>
 
-          {grupoDeAlimentos.map((fila, idx) => (
+        <div className="d-flex flex-column gap-2 mb-3">
+          {advertencias.map((adv, index) => (
             <div
-              className="row g-2 align-items-end mb-3 pb-2 border-bottom"
-              key={idx}
+              className="d-flex align-items-center gap-2 border rounded-2 p-2 bg-light"
+              key={`adv-${index}`}
             >
-              <div className="col-md-3">
-                <CustomInput
-                  id={`categoria-${idx}`}
-                  label="Categoría"
-                  placeholder="YOGURT/LECHE, CARNE..."
-                  value={fila.categoria}
-                  onChange={(e) =>
-                    handleFilaChange(idx, "categoria", e.target.value)
-                  }
-                  className="mb-2"
-                />
-              </div>
-
-              <div className="col-md-4">
-                <CustomInput
-                  id={`seleccion-${idx}`}
-                  label="Selección"
-                  placeholder="Preferentemente descremado..."
-                  value={fila.seleccion}
-                  onChange={(e) =>
-                    handleFilaChange(idx, "seleccion", e.target.value)
-                  }
-                  className="mb-2"
-                />
-              </div>
-
-              <div className="col-md-4">
-                <CustomInput
-                  id={`metodo-${idx}`}
-                  label="Método de preparación"
-                  placeholder="Solo, con frutas, al horno..."
-                  value={fila.metodoPreparacion}
-                  onChange={(e) =>
-                    handleFilaChange(idx, "metodoPreparacion", e.target.value)
-                  }
-                  className="mb-2"
-                />
-              </div>
-
-              <div className="col-md-1 mb-2">
-                <CustomButton
-                  variant="danger"
-                  fullWidth
-                  onClick={() => quitarFila(idx)}
-                  title="Quitar fila"
-                >
-                  ✕
-                </CustomButton>
-              </div>
+              <span className="flex-grow-1 small">{adv}</span>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-danger"
+                onClick={() => quitarAdvertencia(index)}
+                title="Quitar advertencia"
+              >
+                ✕
+              </button>
             </div>
           ))}
+        </div>
 
-          <hr className="my-4" />
+        <label
+          htmlFor="nuevaAdvertencia"
+          className="form-label fw-semibold text-dark"
+        >
+          Nueva advertencia o recomendación
+        </label>
+        <div className="input-group mb-4">
+          <input
+            id="nuevaAdvertencia"
+            name="nuevaAdvertencia"
+            type="text"
+            className="form-control"
+            placeholder="Escriba una recomendación adicional..."
+            value={nuevaAdvertencia}
+            onChange={(e) => setNuevaAdvertencia(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                agregarAdvertencia();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="btn btn-outline-success"
+            onClick={agregarAdvertencia}
+          >
+            + Agregar
+          </button>
+        </div>
 
-          {/* Advertencias y recomendaciones */}
-          <h6 className="fw-semibold text-secondary mb-3">
-            Advertencias y Recomendaciones
-          </h6>
-
-          <ul className="list-group mb-3">
-            {advertencias.map((adv, idx) => (
-              <li
-                className="list-group-item d-flex justify-content-between align-items-start gap-2"
-                key={idx}
-              >
-                <span className="small">{adv}</span>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-danger"
-                  onClick={() => quitarAdvertencia(idx)}
-                >
-                  ✕
-                </button>
-              </li>
-            ))}
-          </ul>
-
-          <div className="row g-2 align-items-end mb-4">
-            <div className="col-md-10">
-              <CustomInput
-                id="nuevaAdvertencia"
-                label="Nueva advertencia o recomendación"
-                placeholder="Escriba una recomendación adicional..."
-                value={nuevaAdvertencia}
-                onChange={(e) => setNuevaAdvertencia(e.target.value)}
-                className="mb-0"
-              />
-            </div>
-            <div className="col-md-2">
-              <CustomButton
-                variant="outline"
-                fullWidth
-                onClick={agregarAdvertencia}
-              >
-                + Agregar
-              </CustomButton>
-            </div>
-          </div>
-
-          {/* Botones de acción */}
-          <div className="d-flex justify-content-end gap-2 pt-2">
-            {onCancel && (
-              <CustomButton variant="secondary" onClick={onCancel}>
-                Cancelar
-              </CustomButton>
-            )}
-            <CustomButton type="submit" variant="primary" loading={submitting}>
-              {submitLabel}
+        <div className="d-flex justify-content-end gap-2">
+          {onCancel && (
+            <CustomButton type="button" variant="secondary" onClick={onCancel}>
+              Cancelar
             </CustomButton>
-          </div>
-        </form>
-      </div>
+          )}
+          <CustomButton type="submit" loading={submitting}>
+            {submitLabel}
+          </CustomButton>
+        </div>
+      </form>
     </div>
   );
 };

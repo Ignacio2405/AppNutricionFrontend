@@ -1,11 +1,34 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { CustomInput } from "./ui/CustomInput";
-import { CustomSelect } from "./ui/CustomSelect";
-import { CustomButton } from "./ui/CustomButton";
-import clientesAxios from "../config/axios.js";
+import { useNavigate, useParams } from "react-router-dom";
+import { CustomInput } from "../ui/CustomInput.jsx";
+import { CustomSelect } from "../ui/CustomSelect";
+import { CustomButton } from "../ui/CustomButton";
+import clientesAxios from "../../config/axios.js";
 
-export const CrearPaciente = () => {
+const toInputDate = (fecha) => {
+  if (!fecha) return "";
+  const d = new Date(fecha);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().split("T")[0];
+};
+
+const extraerId = (campo) => {
+  if (!campo) return "";
+  if (typeof campo === "object") return String(campo._id || campo.id || "");
+  return String(campo);
+};
+
+const extraerListaObras = (resData) => {
+  if (Array.isArray(resData?.data)) return resData.data;
+  if (Array.isArray(resData?.obrasSociales)) return resData.obrasSociales;
+  if (Array.isArray(resData)) return resData;
+  return [];
+};
+
+export const EditarPaciente = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     nombre: "",
     apellido: "",
@@ -16,80 +39,149 @@ export const CrearPaciente = () => {
     ocupacion: "",
     codigoArea: "",
     numeroTelefono: "",
-    telefonoTipo: "CELULAR",
+    telefonoTipo: "celular",
     obraSocialId: "",
   });
 
   const [obrasSociales, setObrasSociales] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [errorServer, setErrorServer] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
-  // Cargar lista de obras sociales disponibles para el selector
   useEffect(() => {
-    const fetchObrasSociales = async () => {
+    let activo = true;
+
+    const cargarDatos = async () => {
       try {
-        const { data } = await clientesAxios.get("/obraSocial");
-        // Mapeamos para que CustomSelect los lea con { value, label }
-        const opciones = (data.obrasSociales || data).map((os) => ({
-          value: os._id,
-          label: os.razonSocial,
+        const [resPaciente, resObras] = await Promise.all([
+          clientesAxios.get(`/pacientes/${id}`),
+          clientesAxios
+            .get("/obraSocial")
+            .catch(() => ({ data: { data: [] } })),
+        ]);
+
+        if (!activo) return;
+
+        const listaObras = extraerListaObras(resObras?.data);
+        const opcionesObras = listaObras.map((os) => ({
+          value: String(os._id),
+          label: os.razonSocial || os.nombre || "Sin nombre",
         }));
-        setObrasSociales(opciones);
+
+        const pac = resPaciente?.data?.data || resPaciente?.data || null;
+        const obraActualId = extraerId(pac?.obraSocial);
+
+        // Si el paciente tiene una obra social que por algún motivo no vino en la lista, la incluimos
+        if (
+          obraActualId &&
+          !opcionesObras.some((op) => op.value === obraActualId)
+        ) {
+          const nombreActual =
+            typeof pac?.obraSocial === "object"
+              ? pac.obraSocial.razonSocial || "Obra social actual"
+              : "Obra social actual";
+          opcionesObras.unshift({ value: obraActualId, label: nombreActual });
+        }
+
+        setObrasSociales(opcionesObras);
+
+        if (pac) {
+          setFormData({
+            nombre: pac.nombre || "",
+            apellido: pac.apellido || "",
+            dni: pac.dni || "",
+            email: pac.email || "",
+            fechaNacimiento: toInputDate(pac.fechaNacimiento),
+            sexo: pac.sexo || "",
+            ocupacion: pac.ocupacion || "",
+            codigoArea: pac.telefono?.codigoArea || "",
+            numeroTelefono: pac.telefono?.numero || "",
+            telefonoTipo: pac.telefono?.tipo || "celular",
+            obraSocialId: obraActualId,
+          });
+        } else {
+          setErrorServer("Paciente no encontrado.");
+        }
       } catch (err) {
-        console.error("Error al cargar obras sociales", err);
+        if (!activo) return;
+        console.error("Error al cargar paciente para editar:", err);
+        setErrorServer(
+          err.response?.data?.mensaje ||
+            "No se pudieron cargar los datos del paciente.",
+        );
+      } finally {
+        if (activo) setLoading(false);
       }
     };
-    fetchObrasSociales();
-  }, []);
+
+    cargarDatos();
+    return () => {
+      activo = false;
+    };
+  }, [id]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorServer("");
     setSuccessMsg("");
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       const payload = {
-        nombre: formData.nombre,
-        apellido: formData.apellido,
-        dni: formData.dni,
-        email: formData.email,
-        fechaNacimiento: formData.fechaNacimiento,
+        nombre: formData.nombre.trim(),
+        apellido: formData.apellido.trim(),
+        dni: formData.dni.trim(),
+        email: formData.email.trim().toLowerCase(),
+        fechaNacimiento: formData.fechaNacimiento
+          ? new Date(formData.fechaNacimiento)
+          : undefined,
         sexo: formData.sexo || undefined,
-        ocupacion: formData.ocupacion || undefined,
+        ocupacion: formData.ocupacion.trim() || undefined,
         telefono: {
           tipo: formData.telefonoTipo,
-          codigoArea: formData.codigoArea,
-          numero: formData.numeroTelefono,
+          codigoArea: formData.codigoArea.trim(),
+          numero: formData.numeroTelefono.trim(),
         },
         obraSocial: formData.obraSocialId || null,
       };
 
-      await clientesAxios.post("/pacientes", payload);
-      setSuccessMsg("¡Paciente registrado con éxito!");
-      setTimeout(() => navigate("/customers"), 2000);
+      await clientesAxios.put(`/pacientes/${id}`, payload);
+      setSuccessMsg("¡Paciente actualizado con éxito!");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setTimeout(() => navigate("/customers"), 1500);
     } catch (err) {
-      console.error(err);
+      console.error("Error al actualizar paciente:", err);
       setErrorServer(
         err.response?.data?.mensaje ||
           err.response?.data?.error ||
-          "Error al registrar paciente.",
+          "Error al actualizar el paciente.",
       );
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="container py-4" style={{ maxWidth: "750px" }}>
+        <div className="card shadow-sm border-0 p-4 rounded-4 text-center">
+          <div className="spinner-border text-success mx-auto" role="status" />
+          <p className="text-muted mt-2 mb-0">Cargando paciente...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-4" style={{ maxWidth: "750px" }}>
       <div className="card shadow-sm border-0 p-4 rounded-4">
-        <h3 className="fw-bold text-success mb-3">Registrar Nuevo Paciente</h3>
+        <h3 className="fw-bold text-success mb-3">Editar Paciente</h3>
 
         {errorServer && (
           <div className="alert alert-danger py-2 small">{errorServer}</div>
@@ -231,16 +323,22 @@ export const CrearPaciente = () => {
             </div>
           </div>
 
+          {successMsg && (
+            <div className="alert alert-success py-2 small mt-3 mb-0">
+              {successMsg}
+            </div>
+          )}
+
           <div className="d-flex justify-content-end gap-2 mt-4">
             <CustomButton
               type="button"
               variant="secondary"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/customers")}
             >
               Cancelar
             </CustomButton>
-            <CustomButton type="submit" loading={loading}>
-              Guardar Paciente
+            <CustomButton type="submit" loading={submitting}>
+              Actualizar Paciente
             </CustomButton>
           </div>
         </form>
