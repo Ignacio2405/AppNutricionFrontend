@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { BsXCircle } from "react-icons/bs";
+import { BsTrash } from "react-icons/bs";
 import clientesAxios from "../../config/axios.js";
 import {
   anularPago,
@@ -66,6 +66,7 @@ export const Pagos = () => {
   const [pacienteFiltro, setPacienteFiltro] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [pagoAEliminar, setPagoAEliminar] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [accionId, setAccionId] = useState("");
@@ -148,16 +149,19 @@ export const Pagos = () => {
     }
   };
 
-  const handleAnular = async (id) => {
+  const handleConfirmarEliminar = async () => {
+    if (!pagoAEliminar?._id) return;
+    const id = pagoAEliminar._id;
     setAccionId(id);
     setError("");
     setMensajeExito("");
     try {
       const res = await anularPago(id);
-      setMensajeExito(res?.mensaje || "Pago anulado correctamente.");
+      setMensajeExito(res?.mensaje || "Pago eliminado correctamente.");
+      setPagoAEliminar(null);
       await recargarPagos(pacienteFiltro, estadoFiltro);
     } catch (err) {
-      setError(err.response?.data?.mensaje || "No se pudo anular el pago.");
+      setError(err.response?.data?.mensaje || "No se pudo eliminar el pago.");
     } finally {
       setAccionId("");
     }
@@ -185,6 +189,7 @@ export const Pagos = () => {
             onClick={() => {
               setError("");
               setMensajeExito("");
+              setPagoAEliminar(null);
               setMostrarFormulario((prev) => !prev);
             }}
           >
@@ -272,6 +277,41 @@ export const Pagos = () => {
         </div>
       )}
 
+      {pagoAEliminar && (
+        <div
+          className="alert alert-warning border-warning d-flex flex-wrap justify-content-between align-items-center gap-3 rounded-4 shadow-sm mb-4"
+          role="alert"
+        >
+          <div>
+            <strong className="d-block">¿Querés eliminar este pago?</strong>
+            <span className="small">
+              Paciente:{" "}
+              <strong>{formatearPaciente(pagoAEliminar.paciente)}</strong> —
+              Monto: <strong>{formatearMoneda(pagoAEliminar.monto)}</strong> (
+              {pagoAEliminar.concepto || "Consulta nutricional"}).
+            </span>
+          </div>
+          <div className="d-flex gap-2">
+            <CustomButton
+              type="button"
+              variant="secondary"
+              disabled={accionId === pagoAEliminar._id}
+              onClick={() => setPagoAEliminar(null)}
+            >
+              Cancelar
+            </CustomButton>
+            <CustomButton
+              type="button"
+              variant="danger"
+              loading={accionId === pagoAEliminar._id}
+              onClick={handleConfirmarEliminar}
+            >
+              Sí, eliminar
+            </CustomButton>
+          </div>
+        </div>
+      )}
+
       {mostrarFormulario && (
         <div className="mb-4">
           <FormularioPago
@@ -350,12 +390,16 @@ export const Pagos = () => {
                           <CustomButton
                             type="button"
                             variant="outline-danger"
-                            title="Anular pago"
-                            aria-label="Anular pago"
+                            title="Eliminar pago"
+                            aria-label="Eliminar pago"
                             disabled={ocupado}
-                            onClick={() => handleAnular(pago._id)}
+                            onClick={() => {
+                              setError("");
+                              setMensajeExito("");
+                              setPagoAEliminar(pago);
+                            }}
                           >
-                            <BsXCircle size={16} />
+                            <BsTrash size={16} />
                           </CustomButton>
                         )}
                       </td>

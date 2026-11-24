@@ -36,6 +36,12 @@ const esTurnoDelDia = (fecha) => {
   return fechaTurno === obtenerHoyLocalStr();
 };
 
+const esTurnoPasado = (fecha) => {
+  const fechaTurno = obtenerFechaUtcStr(fecha);
+  if (!fechaTurno) return false;
+  return fechaTurno < obtenerHoyLocalStr();
+};
+
 const formatearFecha = (fecha) => {
   if (!fecha) return "—";
   const d = new Date(fecha);
@@ -143,6 +149,29 @@ export const Turnos = () => {
     }
     return map;
   }, [medicos]);
+
+  const turnosVisiblesOrdenados = useMemo(() => {
+    const hoyStr = obtenerHoyLocalStr();
+
+    return turnos
+      .filter((t) => !esTurnoPasado(t.fecha))
+      .sort((a, b) => {
+        const fechaA = obtenerFechaUtcStr(a.fecha);
+        const fechaB = obtenerFechaUtcStr(b.fecha);
+        const esHoyA = fechaA === hoyStr ? 0 : 1;
+        const esHoyB = fechaB === hoyStr ? 0 : 1;
+
+        if (esHoyA !== esHoyB) {
+          return esHoyA - esHoyB;
+        }
+
+        if (fechaA !== fechaB) {
+          return fechaA.localeCompare(fechaB);
+        }
+
+        return String(a.hora || "").localeCompare(String(b.hora || ""));
+      });
+  }, [turnos]);
 
   const recargarTurnos = useCallback(async (fecha = "") => {
     setError("");
@@ -328,14 +357,14 @@ export const Turnos = () => {
                     Cargando turnos...
                   </td>
                 </tr>
-              ) : turnos.length === 0 ? (
+              ) : turnosVisiblesOrdenados.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center text-muted py-4">
-                    No hay turnos registrados para mostrar.
+                    No hay turnos vigentes para mostrar.
                   </td>
                 </tr>
               ) : (
-                turnos.map((turno) => {
+                turnosVisiblesOrdenados.map((turno) => {
                   const bloqueado =
                     turno.estado === "ATENDIDO" || turno.estado === "CANCELADO";
                   const ocupado = accionId === turno._id;

@@ -27,6 +27,12 @@ const extraerListaPacientes = (data) => {
   return [];
 };
 
+const obtenerIdPaciente = (paciente) =>
+  paciente?._id || paciente?.id || paciente?.pacienteId || "";
+
+const extraerInforme = (res) =>
+  res?.informe || res?.data?.informe || res?.data || res || null;
+
 export const InformePaciente = () => {
   const { pacienteId: pacienteIdParam } = useParams();
 
@@ -67,7 +73,7 @@ export const InformePaciente = () => {
           setPacienteSeleccionado((prev) => {
             if (prev) return prev;
             setLoading(true);
-            return String(lista[0]._id);
+            return String(obtenerIdPaciente(lista[0]) || "");
           });
         }
       } catch (err) {
@@ -98,7 +104,7 @@ export const InformePaciente = () => {
         if (hasta) params.hasta = hasta;
         const res = await obtenerInformePaciente(pacienteSeleccionado, params);
         if (!activo) return;
-        setInforme(res?.data || null);
+        setInforme(extraerInforme(res));
         setError("");
       } catch (err) {
         if (!activo) return;
@@ -207,7 +213,10 @@ export const InformePaciente = () => {
                   : "Seleccioná un paciente..."}
               </option>
               {pacientes.map((p) => (
-                <option key={p._id} value={p._id}>
+                <option
+                  key={obtenerIdPaciente(p)}
+                  value={obtenerIdPaciente(p)}
+                >
                   {formatearNombrePaciente(p)} {p.dni ? `(DNI: ${p.dni})` : ""}
                 </option>
               ))}

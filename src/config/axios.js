@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const clientesAxios = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
+  baseURL: import.meta.env.VITE_URL_LOCAL || "http://localhost:3000/api",
 });
 
 const tokenEstaExpirado = (token) => {

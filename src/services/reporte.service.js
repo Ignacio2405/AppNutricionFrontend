@@ -4,5 +4,6 @@ export const obtenerInformePaciente = async (pacienteId, params = {}) => {
   const { data } = await clientesAxios.get(`/reportes/paciente/${pacienteId}`, {
     params,
   });
-  return data;
+
+  return data?.informe || data?.data?.informe || data?.data || data;
 };

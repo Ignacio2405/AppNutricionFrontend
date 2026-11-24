@@ -11,21 +11,33 @@ export const DetalleConsulta = () => {
   const [errorServer, setErrorServer] = useState("");
 
   useEffect(() => {
+    let cancelado = false;
+
     const fetchDetalle = async () => {
       setLoading(true);
+      setErrorServer("");
       try {
         const { data } = await clientesAxios.get(`/consulta/${id}`);
+        if (cancelado) return;
         setConsulta(data.data || data.consulta || data);
       } catch (err) {
         console.error("Error al obtener consulta:", err);
-        setErrorServer(
-          err.response?.data?.mensaje || "No se pudo cargar la consulta.",
-        );
+        if (!cancelado) {
+          setErrorServer(
+            err.response?.data?.mensaje || "No se pudo cargar la consulta.",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelado) {
+          setLoading(false);
+        }
       }
     };
+
     if (id) fetchDetalle();
+    return () => {
+      cancelado = true;
+    };
   }, [id]);
 
   if (loading) {
@@ -50,6 +62,7 @@ export const DetalleConsulta = () => {
     );
   }
 
+  const consultaId = consulta._id || consulta.id || id;
   const mediciones = consulta.antropometria?.mediciones || {};
   const resultados = consulta.antropometria?.resultados || {};
 
@@ -77,7 +90,7 @@ export const DetalleConsulta = () => {
             </CustomButton>
             <CustomButton
               variant="success"
-              onClick={() => navigate(`/consulta/${id}/editar`)}
+              onClick={() => navigate(`/consulta/${consultaId}/editar`)}
             >
               Editar Consulta
             </CustomButton>
@@ -100,7 +113,9 @@ export const DetalleConsulta = () => {
             <p className="mb-1 text-muted small">Fecha</p>
             <p className="fw-semibold">
               {consulta.fecha
-                ? new Date(consulta.fecha).toLocaleDateString("es-AR")
+                ? new Date(consulta.fecha).toLocaleDateString("es-AR", {
+                    timeZone: "UTC",
+                  })
                 : "-"}
             </p>
           </div>

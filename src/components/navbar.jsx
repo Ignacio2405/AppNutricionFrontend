@@ -8,7 +8,6 @@ import {
   BsCalendar2Week,
   BsClock,
   BsExclamationTriangle,
-  BsClipboardData,
   BsJournalMedical,
   BsCupHot,
   BsClipboardPulse,
@@ -64,14 +63,7 @@ const SECCIONES_CONFIG = [
     icon: BsExclamationTriangle,
     className: "mt-1",
   },
-  {
-    id: "informes-grupo",
-    label: "Informes",
-    path: "/reportes/paciente",
-    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.MEDICO, ROLES.PACIENTE],
-    icon: BsClipboardData,
-    className: "mt-1",
-  },
+
   {
     id: "pacientes-grupo",
     label: "Pacientes",
@@ -124,7 +116,7 @@ const SECCIONES_CONFIG = [
   {
     id: "consultas-grupo",
     label: "Consultas",
-    roles: [ROLES.ADMIN, ROLES.MEDICO],
+    roles: [ROLES.MEDICO],
     icon: BsCalendarCheck,
     className: "mt-1",
     children: [
@@ -139,7 +131,7 @@ const SECCIONES_CONFIG = [
   {
     id: "historial-medico-grupo",
     label: "Historiales Médicos",
-    roles: [ROLES.ADMIN, ROLES.MEDICO],
+    roles: [ROLES.MEDICO],
     icon: BsJournalMedical,
     className: "mt-1",
     children: [
@@ -158,7 +150,7 @@ const SECCIONES_CONFIG = [
   {
     id: "habitos-alimentarios-grupo",
     label: "Hábitos Alimentarios",
-    roles: [ROLES.ADMIN, ROLES.MEDICO],
+    roles: [ROLES.MEDICO],
     icon: BsCupHot,
     className: "mt-1",
     children: [
@@ -177,7 +169,7 @@ const SECCIONES_CONFIG = [
   {
     id: "resultados-laboratorio-grupo",
     label: "Resultados de Laboratorio",
-    roles: [ROLES.ADMIN, ROLES.MEDICO],
+    roles: [ROLES.MEDICO],
     icon: BsClipboardPulse,
     className: "mt-1",
     children: [
@@ -196,7 +188,7 @@ const SECCIONES_CONFIG = [
   {
     id: "planes-comidas-grupo",
     label: "Planes de Comidas",
-    roles: [ROLES.ADMIN, ROLES.MEDICO],
+    roles: [ROLES.MEDICO, ROLES.PACIENTE],
     icon: BsCupHot,
     className: "mt-1",
     children: [
@@ -215,7 +207,7 @@ const SECCIONES_CONFIG = [
   {
     id: "metas-objetivos-grupo",
     label: "Metas y Objetivos",
-    roles: [ROLES.ADMIN, ROLES.MEDICO, ROLES.PACIENTE],
+    roles: [ROLES.MEDICO, ROLES.PACIENTE],
     icon: BsCheck2Circle,
     className: "mt-1",
     children: [
