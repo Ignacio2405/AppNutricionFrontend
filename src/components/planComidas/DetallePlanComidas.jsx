@@ -10,6 +10,12 @@ const formatearFecha = (fecha) => {
   return d.toLocaleDateString("es-AR");
 };
 
+const ETIQUETA_MOMENTO = {
+  DESAYUNO_MERIENDA: "Desayuno y merienda",
+  ALMUERZO_CENA: "Almuerzo y cena",
+  COLACION: "Colación",
+};
+
 const RECOMENDACIONES_FALLBACK = [
   "Realizar diariamente las 4 comidas principales y 2 colaciones.",
   "Evitar el consumo de alimentos calientes o muy fríos.",
@@ -80,18 +86,36 @@ export const DetallePlanComidas = () => {
   const consulta =
     typeof plan.consultationId === "object" ? plan.consultationId : null;
   const macros = plan.objetivosMacros || {};
+
   const grupos = Array.isArray(plan.grupoDeAlimentos)
     ? plan.grupoDeAlimentos
     : [];
+  const gruposHoja1 = grupos.slice(0, 6);
+  const gruposHoja2 = grupos.slice(6);
+
+  const equivalencias = Array.isArray(plan.distribucionEquivalencias)
+    ? plan.distribucionEquivalencias
+    : [];
+  const equivalenciasDesayunoMerienda = equivalencias.filter(
+    (eq) => eq.momento === "DESAYUNO_MERIENDA",
+  );
+  const equivalenciasResto = equivalencias.filter(
+    (eq) => eq.momento !== "DESAYUNO_MERIENDA",
+  );
+
+  const recetas = Array.isArray(plan.recetasEjemplos)
+    ? plan.recetasEjemplos
+    : [];
+
   const advertencias = Array.isArray(plan.advertencias)
     ? plan.advertencias
     : [];
 
-  const gruposHoja1 = grupos.slice(0, 6);
-  const gruposHoja2 = grupos.slice(6);
-
-  const listaRecomendaciones =
-    advertencias.length > 0 ? advertencias : RECOMENDACIONES_FALLBACK;
+  const recomendaciones =
+    Array.isArray(plan.recomendacionesGenerales) &&
+    plan.recomendacionesGenerales.length > 0
+      ? plan.recomendacionesGenerales
+      : RECOMENDACIONES_FALLBACK;
 
   return (
     <div className="container py-4">
@@ -122,7 +146,14 @@ export const DetallePlanComidas = () => {
       <div className="card shadow-sm border-0 p-4 rounded-4 mb-4 d-print-none">
         <div className="d-flex flex-wrap justify-content-between align-items-start gap-2 border-bottom pb-3 mb-3">
           <div>
-            <h4 className="fw-bold text-success mb-1">{plan.titulo}</h4>
+            <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+              <h4 className="fw-bold text-success mb-0">{plan.titulo}</h4>
+              {plan.tipoPlan && (
+                <span className="badge bg-success-subtle text-success border border-success-subtle">
+                  {plan.tipoPlan}
+                </span>
+              )}
+            </div>
             <div className="text-muted small">
               <strong>Paciente:</strong>{" "}
               {paciente
@@ -233,7 +264,9 @@ export const DetallePlanComidas = () => {
         </div>
 
         <div className="plan-caja-borde text-center py-2">
-          <div className="fw-bold text-uppercase">PLAN ALIMENTARIO.</div>
+          <div className="fw-bold text-uppercase">
+            PLAN ALIMENTARIO{plan.tipoPlan ? `. ${plan.tipoPlan}.` : "."}
+          </div>
           <div className="fst-italic">{plan.titulo}</div>
         </div>
 
@@ -292,171 +325,91 @@ export const DetallePlanComidas = () => {
           <div className="plan-page-badge">2</div>
         </div>
 
-        <table className="plan-tabla-alimentos">
-          <thead>
-            <tr>
-              <th style={{ width: "22%" }}>ALIMENTOS</th>
-              <th style={{ width: "43%" }}>SELECCIÓN</th>
-              <th style={{ width: "35%" }}>FORMA DE PREPARACIÓN</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="plan-fila-aviso">
-              <td colSpan={3}>
-                * Incluir al final de la preparación,{" "}
-                <strong>NO utilizar durante</strong> ni como medio de cocción.
-              </td>
-            </tr>
-            {gruposHoja2.map((item, idx) => (
-              <tr key={`h2-${idx}`}>
-                <td className="fw-bold">{item.categoria}</td>
-                <td>{item.seleccion}</td>
-                <td>{item.metodoPreparacion || "—"}</td>
+        {gruposHoja2.length > 0 && (
+          <table className="plan-tabla-alimentos mb-3">
+            <thead>
+              <tr>
+                <th style={{ width: "22%" }}>ALIMENTOS</th>
+                <th style={{ width: "43%" }}>SELECCIÓN</th>
+                <th style={{ width: "35%" }}>FORMA DE PREPARACIÓN</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {gruposHoja2.map((item, idx) => (
+                <tr key={`h2-${idx}`}>
+                  <td className="fw-bold">{item.categoria}</td>
+                  <td>{item.seleccion}</td>
+                  <td>{item.metodoPreparacion || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
 
         <div className="banner-seccion-verde">
           DISTRIBUCIÓN DE ALIMENTOS Y EQUIVALENCIAS
         </div>
         <p className="subtitulo-equivalencias">
-          Consumir una de las opciones de lácteos, cereales y frutas en cada
-          preparación tanto de desayuno como de merienda.
+          Consumir las porciones y opciones indicadas según cada momento del
+          día.
         </p>
 
         <div className="text-center mb-3">
           <span className="cinta-subtitulo">DESAYUNO Y MERIENDA</span>
         </div>
 
-        <table className="tabla-equivalencias">
+        <table className="tabla-equivalencias mb-3">
+          <thead>
+            <tr>
+              <th style={{ width: "22%" }}>RUBRO</th>
+              <th style={{ width: "33%" }}>PORCIONES / EQUIVALENCIAS</th>
+              <th style={{ width: "45%" }}>OPCIONES / PREPARACIONES</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr>
-              <td
-                rowSpan={2}
-                className="fw-bold text-center"
-                style={{ width: "18%" }}
-              >
-                LÁCTEOS
-              </td>
-              <td className="fw-semibold" style={{ width: "20%" }}>
-                Queso
-              </td>
-              <td style={{ width: "40%" }}>
-                2 cucharas soperas de queso untable.
-                <br />
-                3 fetas.
-                <br />1 porción (imagen).
-              </td>
-              <td rowSpan={2} className="text-center" style={{ width: "22%" }}>
-                {/* <img src="/equivalencias/lacteos.jpg" alt="Lácteos" className="img-equivalencia" /> */}
-              </td>
-            </tr>
-            <tr>
-              <td className="fw-semibold">Yogurt / Leche</td>
-              <td>1 taza. (Desayuno y merienda).</td>
-            </tr>
+            {equivalenciasDesayunoMerienda.length > 0 ? (
+              equivalenciasDesayunoMerienda.map((eq, idx) => (
+                <tr key={`eq-dm-${idx}`}>
+                  <td className="fw-bold">{eq.rubro}</td>
+                  <td>{eq.porcionesEquivalencias}</td>
+                  <td>{eq.opcionesOPreparaciones || "—"}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={3} className="text-center text-muted py-2">
+                  Sin equivalencias de desayuno y merienda cargadas.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
 
-        <div className="row g-2 mb-2">
-          <div className="col-md-7">
-            <table className="tabla-equivalencias mb-0">
+        {recetas.length > 0 && (
+          <>
+            <div className="text-center mb-2">
+              <span className="cinta-subtitulo">RECETAS / EJEMPLOS</span>
+            </div>
+            <table className="tabla-equivalencias">
+              <thead>
+                <tr>
+                  <th style={{ width: "28%" }}>PREPARACIÓN</th>
+                  <th style={{ width: "32%" }}>INGREDIENTES</th>
+                  <th style={{ width: "40%" }}>ELABORACIÓN</th>
+                </tr>
+              </thead>
               <tbody>
-                <tr>
-                  <td className="fw-bold text-center" style={{ width: "28%" }}>
-                    CEREALES
-                  </td>
-                  <td className="fw-semibold" style={{ width: "27%" }}>
-                    Pan
-                  </td>
-                  <td>
-                    1 rodaja tipo molde.
-                    <br />3 tostadas mignón.
-                    <br />4 galletitas saladas tipo criollitas.
-                  </td>
-                </tr>
-                <tr>
-                  <td className="text-center small text-muted">
-                    Avena / Copos s/azúcar
-                  </td>
-                  <td className="fw-semibold">Avena / Copos</td>
-                  <td>3 cucharadas soperas.</td>
-                </tr>
+                {recetas.map((rec, idx) => (
+                  <tr key={`rec-${idx}`}>
+                    <td className="fw-bold">{rec.nombre}</td>
+                    <td className="small">{rec.ingredientes || "—"}</td>
+                    <td className="small">{rec.preparacion || "—"}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="col-md-5">
-            <table className="tabla-equivalencias mb-0">
-              <tbody>
-                <tr>
-                  <td className="fw-bold text-center" style={{ width: "30%" }}>
-                    FRUTAS
-                  </td>
-                  <td>
-                    1 unidad.
-                    <br />1 taza.
-                    <br />
-                    Puré, compota con poco jugo, rallada.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <table className="tabla-equivalencias">
-          <tbody>
-            <tr>
-              <td className="fw-bold text-center" style={{ width: "20%" }}>
-                AZÚCAR / EDULCORANTE
-              </td>
-              <td className="fw-semibold" style={{ width: "22%" }}>
-                Mermelada / Dulce - postre (batata o membrillo) / Azúcar
-              </td>
-              <td style={{ width: "36%" }}>
-                2 cucharadas tipo postre.
-                <br />
-                Porción acompañar con queso.
-              </td>
-              <td className="text-center" style={{ width: "22%" }}>
-                {/* <img src="/equivalencias/dulce.jpg" alt="Dulce" className="img-equivalencia" /> */}
-              </td>
-            </tr>
-            <tr>
-              <td className="fw-bold text-center">
-                BUDÍN (artesanal)
-                <br />
-                <span className="fw-normal small">1 PORCIÓN</span>
-              </td>
-              <td colSpan={3} className="small">
-                2 frutas / frutos secos - 2 huevos - 2 claras -
-                azúcar/stevia/edulcorante - esencia de vainilla - aceite c/n.
-                180 g de harina leudante / avena / harina integral + 1 cda de
-                polvo de hornear. Preparar el molde, batir las claras a punto
-                nieve, separado batir los huevos y agregar el polvo y la
-                esencia, endulzar, agregar las frutas ralladas o frutos secos y
-                la harina, verter las claras, mezclar con movimientos
-                envolventes.
-              </td>
-            </tr>
-            <tr>
-              <td className="fw-bold text-center">
-                TOSTADA CON ACEITE DE OLIVA Y QUESO
-              </td>
-              <td className="small">
-                2 unidades, con perejil, orégano, ajo, tomate, palta, rúcula,
-                cebolla, etc.
-              </td>
-              <td className="fw-bold text-center">TORTILLA DE AVENA</td>
-              <td className="small">
-                1 huevo - ½ taza de avena - agua o leche necesaria, condimentos.
-                Agregar: frutas, queso y/o tomate, huevo.
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          </>
+        )}
 
         <div className="plan-footer-info">
           Consultorio — Turnos — Goya (Corrientes)
@@ -464,7 +417,7 @@ export const DetallePlanComidas = () => {
       </div>
 
       {/* ====================================================================
-          HOJA 3: Equivalencias Finales, Recomendaciones y Firma
+          HOJA 3: Equivalencias Restantes, Recomendaciones y Firma
          ==================================================================== */}
       <div className="hoja-plan-pdf salto-pagina-pdf mt-4">
         <div className="plan-encabezado-top">
@@ -477,34 +430,33 @@ export const DetallePlanComidas = () => {
         </div>
 
         <table className="tabla-equivalencias mb-3">
+          <thead>
+            <tr>
+              <th style={{ width: "20%" }}>MOMENTO</th>
+              <th style={{ width: "20%" }}>RUBRO</th>
+              <th style={{ width: "28%" }}>PORCIONES / EQUIVALENCIAS</th>
+              <th style={{ width: "32%" }}>OPCIONES / PREPARACIONES</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr>
-              <td style={{ width: "20%" }} />
-              <td className="text-center small" style={{ width: "40%" }}>
-                {/* <img src="/equivalencias/tortilla-papa.jpg" alt="Tortilla de papa" className="img-equivalencia d-block mx-auto mb-1" /> */}
-                <div>Tortilla de papa</div>
-              </td>
-              <td className="text-center small" style={{ width: "40%" }}>
-                {/* <img src="/equivalencias/papas-horno.jpg" alt="Batata o papa horneadas" className="img-equivalencia d-block mx-auto mb-1" /> */}
-                <div>Batata o papa horneadas</div>
-              </td>
-            </tr>
-            <tr>
-              <td className="fw-bold text-center">LEGUMBRES</td>
-              <td className="text-center small">1 hamburguesa</td>
-              <td className="text-center small">Con vegetales</td>
-            </tr>
-            <tr className="plan-fila-aviso">
-              <td colSpan={3} className="text-center">
-                Se sugiere consumir harinas de legumbres
-              </td>
-            </tr>
-            <tr>
-              <td className="fw-bold text-center">HUEVO</td>
-              <td colSpan={2} className="small">
-                2 unidades/día sin contar los utilizados en preparaciones.
-              </td>
-            </tr>
+            {equivalenciasResto.length > 0 ? (
+              equivalenciasResto.map((eq, idx) => (
+                <tr key={`eq-resto-${idx}`}>
+                  <td className="fw-semibold">
+                    {ETIQUETA_MOMENTO[eq.momento] || eq.momento}
+                  </td>
+                  <td className="fw-bold">{eq.rubro}</td>
+                  <td>{eq.porcionesEquivalencias}</td>
+                  <td>{eq.opcionesOPreparaciones || "—"}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="text-center text-muted py-2">
+                  Sin equivalencias adicionales cargadas.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
 
@@ -517,8 +469,8 @@ export const DetallePlanComidas = () => {
             RECOMENDACIONES GENERALES
           </div>
           <ul className="lista-flechas">
-            {listaRecomendaciones.map((rec, idx) => (
-              <li key={`rec-${idx}`}>{rec}</li>
+            {recomendaciones.map((rec, idx) => (
+              <li key={`rec-gen-${idx}`}>{rec}</li>
             ))}
           </ul>
         </div>

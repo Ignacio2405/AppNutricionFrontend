@@ -38,6 +38,15 @@ import { ListarMetasObjetivos } from "./components/metasObjetivos/ListarMetasObj
 import { CrearMetaObjetivo } from "./components/metasObjetivos/CrearMetaObjetivo";
 import { DetalleMetaObjetivo } from "./components/metasObjetivos/DetalleMetaObjetivo";
 import { EditarMetaObjetivo } from "./components/metasObjetivos/EditarMetaObjetivo";
+import { Turnos } from "./components/turnos/Turnos.jsx";
+import { CrearTurno } from "./components/turnos/CrearTurno.jsx";
+import { EditarTurno } from "./components/turnos/EditarTurno.jsx";
+import { Agenda } from "./components/agenda/Agenda.jsx";
+import { CrearAgenda } from "./components/agenda/CrearAgenda.jsx";
+import { EditarAgenda } from "./components/agenda/EditarAgenda.jsx";
+import { ExcepcionesAgenda } from "./components/agenda/ExcepcionesAgenda.jsx";
+import { InformePaciente } from "./components/reportes/InformePaciente.jsx";
+import { Pagos } from "./components/pagos/Pagos.jsx";
 import { NotFound } from "./components/NotFound";
 
 // Ruta privada: si no hay token, manda directo al login
@@ -61,7 +70,7 @@ const PublicRoute = ({ children }) => {
 function App() {
   return (
     <BrowserRouter>
-      <div className="w-100 min-vh-100 m-0 p-0 overflow-auto">
+      <div className="w-100 min-vh-100 m-0 p-0">
         <Routes>
           {/* 1. Ruta Pública: Login */}
           <Route
@@ -100,7 +109,20 @@ function App() {
             <Route path="pacientes/nuevo" element={<CrearPaciente />} />
             <Route path="/pacientes/:id" element={<DetallePaciente />} />
             <Route path="/pacientes/editar/:id" element={<EditarPaciente />} />
+            {/* Turnos */}
+            <Route path="/turnos" element={<Turnos />} />
+            <Route path="/turnos/nuevo" element={<CrearTurno />} />
+            <Route path="/turnos/:id/editar" element={<EditarTurno />} />
+            {/* Agenda */}
+            <Route path="/agenda" element={<Agenda />} />
+            <Route path="/agenda/nuevo" element={<CrearAgenda />} />
+            <Route path="/agenda/:id/editar" element={<EditarAgenda />} />
 
+            <Route path="/excepcion" element={<ExcepcionesAgenda />}></Route>
+            <Route
+              path="/reportes/paciente"
+              element={<InformePaciente />}
+            ></Route>
             {/* Médicos */}
             <Route path="medicos" element={<ListarMedicos />} />
             <Route path="medicos/nuevo" element={<CrearMedico />} />
@@ -168,6 +190,8 @@ function App() {
               path="planes-comidas/:id/editar"
               element={<EditarPlanComidas />}
             />
+
+            <Route path="/pagos" element={<Pagos />} />
 
             <Route path="/metas-objetivos" element={<ListarMetasObjetivos />} />
             <Route

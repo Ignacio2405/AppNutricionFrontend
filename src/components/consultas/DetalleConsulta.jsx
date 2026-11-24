@@ -14,7 +14,7 @@ export const DetalleConsulta = () => {
     const fetchDetalle = async () => {
       setLoading(true);
       try {
-        const { data } = await clientesAxios.get(`/consultas/${id}`);
+        const { data } = await clientesAxios.get(`/consulta/${id}`);
         setConsulta(data.data || data.consulta || data);
       } catch (err) {
         console.error("Error al obtener consulta:", err);
@@ -43,10 +43,7 @@ export const DetalleConsulta = () => {
         <div className="alert alert-danger">
           {errorServer || "Consulta no encontrada."}
         </div>
-        <CustomButton
-          variant="secondary"
-          onClick={() => navigate("/consultas")}
-        >
+        <CustomButton variant="secondary" onClick={() => navigate("/consulta")}>
           Volver al listado
         </CustomButton>
       </div>
@@ -74,13 +71,13 @@ export const DetalleConsulta = () => {
           <div className="d-flex gap-2">
             <CustomButton
               variant="secondary"
-              onClick={() => navigate("/consultas")}
+              onClick={() => navigate("/consulta")}
             >
               Volver
             </CustomButton>
             <CustomButton
               variant="success"
-              onClick={() => navigate(`/consultas/${id}/editar`)}
+              onClick={() => navigate(`/consulta/${id}/editar`)}
             >
               Editar Consulta
             </CustomButton>

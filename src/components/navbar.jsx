@@ -5,10 +5,16 @@ import {
   BsHeartPulse,
   BsCardChecklist,
   BsCalendarCheck,
+  BsCalendar2Week,
+  BsClock,
+  BsExclamationTriangle,
+  BsClipboardData,
   BsJournalMedical,
   BsCupHot,
   BsClipboardPulse,
   BsCheck2Circle,
+  BsPersonCircle,
+  BsCashCoin,
 } from "react-icons/bs";
 
 const ROLES = {
@@ -29,11 +35,49 @@ const TODOS_LOS_ROLES = [
 
 const SECCIONES_CONFIG = [
   {
+    id: "turnos-grupo",
+    label: "Turnos",
+    roles: TODOS_LOS_ROLES,
+    icon: BsCalendar2Week,
+    className: "",
+    children: [
+      { id: "turnos-lista", label: "Lista de Turnos", path: "/turnos" },
+      { id: "turnos-nuevo", label: "Nuevo Turno", path: "/turnos/nuevo" },
+    ],
+  },
+  {
+    id: "agenda-grupo",
+    label: "Agenda",
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.MEDICO],
+    icon: BsClock,
+    className: "mt-1",
+    children: [
+      { id: "agenda-lista", label: "Lista de Horarios", path: "/agenda" },
+      { id: "agenda-nuevo", label: "Nuevo Horario", path: "/agenda/nuevo" },
+    ],
+  },
+  {
+    id: "excepciones-grupo",
+    label: "Excepciones",
+    path: "/excepcion",
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.MEDICO],
+    icon: BsExclamationTriangle,
+    className: "mt-1",
+  },
+  {
+    id: "informes-grupo",
+    label: "Informes",
+    path: "/reportes/paciente",
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.MEDICO, ROLES.PACIENTE],
+    icon: BsClipboardData,
+    className: "mt-1",
+  },
+  {
     id: "pacientes-grupo",
     label: "Pacientes",
     roles: TODOS_LOS_ROLES,
     icon: BsPeople,
-    className: "",
+    className: "mt-1",
     children: [
       {
         id: "pacientes-lista",
@@ -187,44 +231,13 @@ const SECCIONES_CONFIG = [
       },
     ],
   },
-];
-
-const ACCESOS_RAPIDOS = [
   {
-    id: "quick-paciente",
-    label: "Nuevo Paciente",
-    path: "/pacientes/nuevo",
-    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA],
-  },
-  {
-    id: "quick-medico",
-    label: "Nuevo Médico",
-    path: "/medicos/nuevo",
-    roles: [ROLES.ADMIN],
-  },
-  {
-    id: "quick-obra",
-    label: "Nueva Obra Social",
-    path: "/obras-sociales/nueva",
-    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA],
-  },
-  {
-    id: "quick-consulta",
-    label: "Nueva Consulta",
-    path: "/consulta/nueva",
-    roles: [ROLES.ADMIN, ROLES.MEDICO],
-  },
-  {
-    id: "quick-historial",
-    label: "Nuevo Historial Médico",
-    path: "/historial-medico/nuevo",
-    roles: [ROLES.ADMIN, ROLES.MEDICO],
-  },
-  {
-    id: "quick-metas",
-    label: "Nuevas Metas y Objetivos",
-    path: "/metas-objetivos/nuevo",
-    roles: [ROLES.ADMIN, ROLES.MEDICO],
+    id: "pagos-grupo",
+    label: "Pagos",
+    path: "/pagos",
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.MEDICO],
+    icon: BsCashCoin,
+    className: "mt-1",
   },
 ];
 
@@ -261,22 +274,14 @@ export const NavBar = () => {
   const usuario = useMemo(() => obtenerUsuarioDesdeToken(), []);
   const rolUsuario = (usuario?.rol || "").toString().toUpperCase();
 
-  const tienePermiso = (rolesPermitidos) => {
-    if (!Array.isArray(rolesPermitidos) || rolesPermitidos.length === 0) {
-      return true;
-    }
-    return rolesPermitidos.map((r) => r.toUpperCase()).includes(rolUsuario);
-  };
-
   const seccionesVisibles = useMemo(
-    () => SECCIONES_CONFIG.filter((sec) => tienePermiso(sec.roles)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rolUsuario],
-  );
-
-  const accesosVisibles = useMemo(
-    () => ACCESOS_RAPIDOS.filter((item) => tienePermiso(item.roles)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () =>
+      SECCIONES_CONFIG.filter((sec) => {
+        if (!Array.isArray(sec.roles) || sec.roles.length === 0) {
+          return true;
+        }
+        return sec.roles.map((r) => r.toUpperCase()).includes(rolUsuario);
+      }),
     [rolUsuario],
   );
 
@@ -312,7 +317,7 @@ export const NavBar = () => {
       </nav>
 
       <div
-        className="offcanvas-md offcanvas-start custom-sidebar d-flex flex-column flex-shrink-0 p-3 h-100 overflow-y-auto"
+        className="offcanvas-md offcanvas-start custom-sidebar d-flex flex-column flex-shrink-0 p-3"
         style={{ paddingBottom: "3rem" }}
         tabIndex={-1}
         id="sidebarMenu"
@@ -345,8 +350,32 @@ export const NavBar = () => {
         <ul className="nav nav-pills flex-column mb-auto">
           {seccionesVisibles.map((sec) => {
             const IconComponent = sec.icon;
+            const tieneHijos =
+              Array.isArray(sec.children) && sec.children.length > 0;
             const isOpen = openSectionId === sec.id;
             const firstChildPath = sec.children?.[0]?.path;
+
+            if (!tieneHijos && sec.path) {
+              return (
+                <li className={`nav-item ${sec.className}`} key={sec.id}>
+                  <NavLink
+                    to={sec.path}
+                    end
+                    onClick={() => setOpenSectionId(null)}
+                    className={({ isActive }) =>
+                      `nav-link d-flex align-items-center text-dark fw-medium ${
+                        isActive ? "active bg-secondary text-white" : ""
+                      }`
+                    }
+                  >
+                    {IconComponent && (
+                      <IconComponent className="me-2 flex-shrink-0" size={16} />
+                    )}
+                    <span>{sec.label}</span>
+                  </NavLink>
+                </li>
+              );
+            }
 
             return (
               <li className={`nav-item ${sec.className}`} key={sec.id}>
@@ -407,7 +436,7 @@ export const NavBar = () => {
                   </button>
                 </div>
 
-                {isOpen && Array.isArray(sec.children) && (
+                {isOpen && tieneHijos && (
                   <ul className="nav flex-column ps-3 mt-1 gap-1">
                     {sec.children.map((child) => (
                       <li className="nav-item" key={child.id}>
@@ -442,13 +471,7 @@ export const NavBar = () => {
             aria-expanded="false"
             onClick={(e) => e.preventDefault()}
           >
-            <img
-              src="https://github.com/mdo.png"
-              alt="Avatar"
-              width="32"
-              height="32"
-              className="rounded-circle me-2"
-            />
+            <BsPersonCircle size={28} className="me-2 flex-shrink-0" />
             <strong>{usuario?.user || "Usuario"}</strong>
           </a>
 
@@ -456,18 +479,6 @@ export const NavBar = () => {
             className="dropdown-menu dropdown-menu-dark text-small shadow"
             aria-labelledby="dropdownUser1"
           >
-            {accesosVisibles.map((item) => (
-              <li key={item.id}>
-                <Link className="dropdown-item" to={item.path}>
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-            {accesosVisibles.length > 0 && (
-              <li>
-                <hr className="dropdown-divider" />
-              </li>
-            )}
             <li>
               <button className="dropdown-item" onClick={handleLogout}>
                 Cerrar sesión

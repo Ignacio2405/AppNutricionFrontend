@@ -19,9 +19,25 @@ export const Login = () => {
 
     try {
       const { data } = await clientesAxios.post("/auth", { email, password });
-      localStorage.setItem("token", data.token);
+      const tokenRecibido =
+        data?.token ||
+        data?.data?.token ||
+        data?.accessToken ||
+        data?.data?.accessToken;
 
-      if (data.debeCambiarPassword) {
+      if (!tokenRecibido || typeof tokenRecibido !== "string") {
+        localStorage.removeItem("token");
+        setErrorServer("El servidor no devolvió un token válido.");
+        return;
+      }
+
+      localStorage.setItem("token", tokenRecibido);
+
+      const debeCambiar =
+        Boolean(data?.debeCambiarPassword) ||
+        Boolean(data?.data?.debeCambiarPassword);
+
+      if (debeCambiar) {
         navigate("/cambiar-password");
       } else {
         navigate("/");

@@ -16,8 +16,13 @@ export const CrearMetaObjetivo = () => {
       navigate("/metas-objetivos");
     } catch (err) {
       console.error("Error al crear metas y objetivos:", err);
+      const datosError = err.response?.data;
+      const detalle = Array.isArray(datosError?.errores)
+        ? datosError.errores.join(" ")
+        : datosError?.error;
+
       setErrorMsg(
-        err.response?.data?.mensaje ||
+        [datosError?.mensaje, detalle].filter(Boolean).join(" — ") ||
           "No se pudieron guardar las metas y objetivos.",
       );
     } finally {

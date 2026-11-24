@@ -5,9 +5,15 @@ import { CustomSelect } from "../ui/CustomSelect.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
 
 const ADVERTENCIAS_DEFAULT = [
-  "Descremado NO siempre es sinónimo de Light. Se sugiere como elección alimentos rotulados como Descremado y/o aquellos productos Light con la leyenda bajo en grasas o grasas 0%.",
+  "Descremado NO siempre es sinónimo de Light. Se sugiere elegir alimentos rotulados como Descremado y/o aquellos productos Light con la leyenda bajo en grasas o grasas 0%.",
   "La cocción del huevo y la carne debe ser completa. No ingerirlos crudos o semicruidos.",
-  "Las hortalizas y frutas que se ingieren crudas, se recomienda lavarlas con abundante agua segura, después de una correcta higiene de manos. Si se fraccionan sobre tablas, que las mismas, sean exclusivas para estos alimentos, o bien utilizar otro elemento que NO sea de madera ni de plástico.",
+  "Las hortalizas y frutas que se ingieren crudas, se recomienda lavarlas con abundante agua segura, después de una correcta higiene de manos. Si se fraccionan sobre tablas, que las mismas, sean exclusivas para estos alimentos o bien utilizar otro elemento que NO sea de madera ni de plástico.",
+];
+
+const OPCIONES_MOMENTO = [
+  { value: "DESAYUNO_MERIENDA", label: "Desayuno y merienda" },
+  { value: "ALMUERZO_CENA", label: "Almuerzo y cena" },
+  { value: "COLACION", label: "Colación" },
 ];
 
 const extraerId = (campo) => {
@@ -38,6 +44,19 @@ const filaAlimentoVacia = () => ({
   categoria: "",
   seleccion: "",
   metodoPreparacion: "",
+});
+
+const equivalenciaVacia = () => ({
+  momento: "DESAYUNO_MERIENDA",
+  rubro: "",
+  porcionesEquivalencias: "",
+  opcionesOPreparaciones: "",
+});
+
+const recetaVacia = () => ({
+  nombre: "",
+  ingredientes: "",
+  preparacion: "",
 });
 
 const parsearNumeroOpcional = (valor) => {
@@ -73,6 +92,7 @@ export const FormularioPlanComidas = ({
   );
 
   const [titulo, setTitulo] = useState(() => initialData?.titulo || "");
+  const [tipoPlan, setTipoPlan] = useState(() => initialData?.tipoPlan || "");
   const [fechaEntrega, setFechaEntrega] = useState(
     () => toInputDate(initialData?.fechaEntrega) || toInputDate(new Date()),
   );
@@ -123,6 +143,38 @@ export const FormularioPlanComidas = ({
         }))
       : [filaAlimentoVacia()],
   );
+
+  const [distribucionEquivalencias, setDistribucionEquivalencias] = useState(
+    () =>
+      Array.isArray(initialData?.distribucionEquivalencias) &&
+      initialData.distribucionEquivalencias.length > 0
+        ? initialData.distribucionEquivalencias.map((eq) => ({
+            momento: eq.momento || "DESAYUNO_MERIENDA",
+            rubro: eq.rubro || "",
+            porcionesEquivalencias: eq.porcionesEquivalencias || "",
+            opcionesOPreparaciones: eq.opcionesOPreparaciones || "",
+          }))
+        : [equivalenciaVacia()],
+  );
+
+  const [recetasEjemplos, setRecetasEjemplos] = useState(() =>
+    Array.isArray(initialData?.recetasEjemplos) &&
+    initialData.recetasEjemplos.length > 0
+      ? initialData.recetasEjemplos.map((rec) => ({
+          nombre: rec.nombre || "",
+          ingredientes: rec.ingredientes || "",
+          preparacion: rec.preparacion || "",
+        }))
+      : [],
+  );
+
+  const [recomendacionesGenerales, setRecomendacionesGenerales] = useState(
+    () =>
+      Array.isArray(initialData?.recomendacionesGenerales)
+        ? initialData.recomendacionesGenerales
+        : [],
+  );
+  const [nuevaRecomendacion, setNuevaRecomendacion] = useState("");
 
   const [advertencias, setAdvertencias] = useState(() =>
     Array.isArray(initialData?.advertencias) &&
@@ -231,6 +283,7 @@ export const FormularioPlanComidas = ({
     setCargandoConsultas(Boolean(nuevoPacienteId));
   };
 
+  // --- Handlers: Grupos de alimentos ---
   const handleAlimentoChange = (index, campo, valor) => {
     setGrupoDeAlimentos((prev) =>
       prev.map((item, idx) =>
@@ -251,6 +304,59 @@ export const FormularioPlanComidas = ({
     );
   };
 
+  // --- Handlers: Distribución y equivalencias ---
+  const handleEquivalenciaChange = (index, campo, valor) => {
+    setDistribucionEquivalencias((prev) =>
+      prev.map((item, idx) =>
+        idx === index ? { ...item, [campo]: valor } : item,
+      ),
+    );
+  };
+
+  const agregarEquivalencia = () => {
+    setDistribucionEquivalencias((prev) => [...prev, equivalenciaVacia()]);
+  };
+
+  const quitarEquivalencia = (index) => {
+    setDistribucionEquivalencias((prev) =>
+      prev.length > 1
+        ? prev.filter((_, idx) => idx !== index)
+        : [equivalenciaVacia()],
+    );
+  };
+
+  // --- Handlers: Recetas / ejemplos ---
+  const handleRecetaChange = (index, campo, valor) => {
+    setRecetasEjemplos((prev) =>
+      prev.map((item, idx) =>
+        idx === index ? { ...item, [campo]: valor } : item,
+      ),
+    );
+  };
+
+  const agregarReceta = () => {
+    setRecetasEjemplos((prev) => [...prev, recetaVacia()]);
+  };
+
+  const quitarReceta = (index) => {
+    setRecetasEjemplos((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  // --- Handlers: Recomendaciones generales ---
+  const agregarRecomendacion = () => {
+    const texto = nuevaRecomendacion.trim();
+    if (!texto) return;
+    setRecomendacionesGenerales((prev) => [...prev, texto]);
+    setNuevaRecomendacion("");
+  };
+
+  const quitarRecomendacion = (index) => {
+    setRecomendacionesGenerales((prev) =>
+      prev.filter((_, idx) => idx !== index),
+    );
+  };
+
+  // --- Handlers: Advertencias ---
   const agregarAdvertencia = () => {
     const texto = nuevaAdvertencia.trim();
     if (!texto) return;
@@ -289,10 +395,28 @@ export const FormularioPlanComidas = ({
       }))
       .filter((item) => item.categoria && item.seleccion);
 
+    const equivalenciasLimpias = distribucionEquivalencias
+      .map((eq) => ({
+        momento: eq.momento,
+        rubro: eq.rubro.trim().toUpperCase(),
+        porcionesEquivalencias: eq.porcionesEquivalencias.trim(),
+        opcionesOPreparaciones: eq.opcionesOPreparaciones.trim(),
+      }))
+      .filter((eq) => eq.rubro && eq.porcionesEquivalencias);
+
+    const recetasLimpias = recetasEjemplos
+      .map((rec) => ({
+        nombre: rec.nombre.trim(),
+        ingredientes: rec.ingredientes.trim(),
+        preparacion: rec.preparacion.trim(),
+      }))
+      .filter((rec) => rec.nombre);
+
     const payload = {
       patientId,
       consultationId: consultationId || null,
       titulo: titulo.trim(),
+      tipoPlan: tipoPlan.trim(),
       fechaEntrega: fechaEntrega || new Date().toISOString(),
       fechaInicioVigencia,
       fechaFinRevision: fechaFinRevision || null,
@@ -304,6 +428,9 @@ export const FormularioPlanComidas = ({
         grasasGramos: parsearNumeroOpcional(grasasGramos),
       },
       grupoDeAlimentos: alimentosLimpios,
+      distribucionEquivalencias: equivalenciasLimpias,
+      recetasEjemplos: recetasLimpias,
+      recomendacionesGenerales,
       advertencias,
     };
 
@@ -360,16 +487,31 @@ export const FormularioPlanComidas = ({
           </div>
         </div>
 
-        {/* Título del plan */}
-        <CustomInput
-          id="titulo"
-          name="titulo"
-          label="Título del plan *"
-          placeholder="Ej: Plan hipocalórico, normoproteico y preventivo..."
-          value={titulo}
-          onChange={(e) => setTitulo(e.target.value)}
-          required
-        />
+        {/* Título y Tipo de plan */}
+        <div className="row g-3 mb-2">
+          <div className="col-md-8">
+            <CustomInput
+              id="titulo"
+              name="titulo"
+              label="Título del plan *"
+              placeholder="Ej: Plan alimentario hipercalórico..."
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="col-md-4">
+            <CustomInput
+              id="tipoPlan"
+              name="tipoPlan"
+              label="Tipo de plan"
+              placeholder="Ej: Hipercalórico, Hipocalórico..."
+              value={tipoPlan}
+              onChange={(e) => setTipoPlan(e.target.value)}
+            />
+          </div>
+        </div>
 
         {/* Fechas */}
         <div className="row g-3 mb-2">
@@ -485,10 +627,10 @@ export const FormularioPlanComidas = ({
 
         <hr className="my-4" />
 
-        {/* Grupos de alimentos */}
+        {/* Selección y formas de preparación (Grupos de Alimentos) */}
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h6 className="fw-semibold text-secondary mb-0">
-            Grupos de Alimentos
+            Selección y Formas de Preparación (Grupos de Alimentos)
           </h6>
           <CustomButton
             type="button"
@@ -506,7 +648,7 @@ export const FormularioPlanComidas = ({
                 id={`categoria-${index}`}
                 name={`categoria-${index}`}
                 label={index === 0 ? "Categoría" : undefined}
-                placeholder="YOGURT/LECHE, CARNE..."
+                placeholder="LECHE/YOGURT, CARNE..."
                 value={fila.categoria}
                 onChange={(e) =>
                   handleAlimentoChange(index, "categoria", e.target.value)
@@ -533,7 +675,7 @@ export const FormularioPlanComidas = ({
               <CustomInput
                 id={`metodoPreparacion-${index}`}
                 name={`metodoPreparacion-${index}`}
-                label={index === 0 ? "Método de preparación" : undefined}
+                label={index === 0 ? "Forma de preparación" : undefined}
                 placeholder="Solo, con frutas, al horno..."
                 value={fila.metodoPreparacion}
                 onChange={(e) =>
@@ -560,6 +702,259 @@ export const FormularioPlanComidas = ({
             </div>
           </div>
         ))}
+
+        <hr className="my-4" />
+
+        {/* Distribución de alimentos y equivalencias */}
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h6 className="fw-semibold text-secondary mb-0">
+            Distribución de Alimentos y Equivalencias
+          </h6>
+          <CustomButton
+            type="button"
+            variant="outline-success"
+            onClick={agregarEquivalencia}
+          >
+            + Agregar equivalencia
+          </CustomButton>
+        </div>
+
+        {distribucionEquivalencias.map((eq, index) => (
+          <div
+            className="border rounded-3 p-3 mb-2 bg-light"
+            key={`eq-${index}`}
+          >
+            <div className="row g-2 align-items-end">
+              <div className="col-md-3">
+                <label
+                  htmlFor={`momento-eq-${index}`}
+                  className="form-label fw-semibold text-dark"
+                >
+                  Momento
+                </label>
+                <select
+                  id={`momento-eq-${index}`}
+                  name={`momento-eq-${index}`}
+                  className="form-select"
+                  value={eq.momento}
+                  onChange={(e) =>
+                    handleEquivalenciaChange(index, "momento", e.target.value)
+                  }
+                >
+                  {OPCIONES_MOMENTO.map((op) => (
+                    <option key={op.value} value={op.value}>
+                      {op.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="col-md-3">
+                <CustomInput
+                  id={`rubro-eq-${index}`}
+                  name={`rubro-eq-${index}`}
+                  label="Rubro"
+                  placeholder="LACTEOS, CEREALES..."
+                  value={eq.rubro}
+                  onChange={(e) =>
+                    handleEquivalenciaChange(index, "rubro", e.target.value)
+                  }
+                  className="mb-0"
+                />
+              </div>
+
+              <div className="col-md-5">
+                <CustomInput
+                  id={`porcion-eq-${index}`}
+                  name={`porcion-eq-${index}`}
+                  label="Porciones / Equivalencias"
+                  placeholder="Ej: 1 taza, 3 tostadas mignón, 1½ plato"
+                  value={eq.porcionesEquivalencias}
+                  onChange={(e) =>
+                    handleEquivalenciaChange(
+                      index,
+                      "porcionesEquivalencias",
+                      e.target.value,
+                    )
+                  }
+                  className="mb-0"
+                />
+              </div>
+
+              <div className="col-md-1">
+                <CustomButton
+                  type="button"
+                  variant="danger"
+                  fullWidth
+                  onClick={() => quitarEquivalencia(index)}
+                  title="Quitar equivalencia"
+                >
+                  ✕
+                </CustomButton>
+              </div>
+            </div>
+
+            <div className="row g-2 mt-2">
+              <div className="col-md-12">
+                <CustomInput
+                  id={`opciones-eq-${index}`}
+                  name={`opciones-eq-${index}`}
+                  label="Opciones / Preparaciones sugeridas"
+                  placeholder="Ej: 1 cucharada sopera de aceite, puré enriquecido..."
+                  value={eq.opcionesOPreparaciones}
+                  onChange={(e) =>
+                    handleEquivalenciaChange(
+                      index,
+                      "opcionesOPreparaciones",
+                      e.target.value,
+                    )
+                  }
+                  className="mb-0"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <hr className="my-4" />
+
+        {/* Recetas / ejemplos prácticos */}
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h6 className="fw-semibold text-secondary mb-0">
+            Recetas / Ejemplos Prácticos (opcional)
+          </h6>
+          <CustomButton
+            type="button"
+            variant="outline-success"
+            onClick={agregarReceta}
+          >
+            + Agregar receta o ejemplo
+          </CustomButton>
+        </div>
+
+        {recetasEjemplos.map((receta, index) => (
+          <div
+            className="border rounded-3 p-3 mb-2 bg-light"
+            key={`receta-${index}`}
+          >
+            <div className="row g-2 align-items-end">
+              <div className="col-md-5">
+                <CustomInput
+                  id={`nombre-receta-${index}`}
+                  name={`nombre-receta-${index}`}
+                  label="Nombre de la preparación *"
+                  placeholder="Ej: Budín artesanal, Tortilla de avena y queso"
+                  value={receta.nombre}
+                  onChange={(e) =>
+                    handleRecetaChange(index, "nombre", e.target.value)
+                  }
+                  className="mb-0"
+                />
+              </div>
+
+              <div className="col-md-6">
+                <CustomInput
+                  id={`ingredientes-receta-${index}`}
+                  name={`ingredientes-receta-${index}`}
+                  label="Ingredientes / Cantidades"
+                  placeholder="Ej: 2 huevos, 1½ taza de avena, queso..."
+                  value={receta.ingredientes}
+                  onChange={(e) =>
+                    handleRecetaChange(index, "ingredientes", e.target.value)
+                  }
+                  className="mb-0"
+                />
+              </div>
+
+              <div className="col-md-1">
+                <CustomButton
+                  type="button"
+                  variant="danger"
+                  fullWidth
+                  onClick={() => quitarReceta(index)}
+                  title="Quitar receta"
+                >
+                  ✕
+                </CustomButton>
+              </div>
+            </div>
+
+            <div className="row g-2 mt-2">
+              <div className="col-md-12">
+                <CustomInput
+                  id={`preparacion-receta-${index}`}
+                  name={`preparacion-receta-${index}`}
+                  label="Paso a paso / Preparación"
+                  placeholder="Indicaciones breves de elaboración..."
+                  value={receta.preparacion}
+                  onChange={(e) =>
+                    handleRecetaChange(index, "preparacion", e.target.value)
+                  }
+                  className="mb-0"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <hr className="my-4" />
+
+        {/* Recomendaciones generales */}
+        <h6 className="fw-semibold text-secondary mb-3">
+          Recomendaciones Generales / Higiénico-Dietéticas
+        </h6>
+
+        {recomendacionesGenerales.length > 0 && (
+          <div className="d-flex flex-column gap-2 mb-3">
+            {recomendacionesGenerales.map((rec, index) => (
+              <div
+                className="d-flex align-items-center gap-2 border rounded-2 p-2 bg-light"
+                key={`rec-gen-${index}`}
+              >
+                <span className="flex-grow-1 small">{rec}</span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={() => quitarRecomendacion(index)}
+                  title="Quitar recomendación"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <label
+          htmlFor="nuevaRecomendacion"
+          className="form-label fw-semibold text-dark"
+        >
+          Nueva recomendación general
+        </label>
+        <div className="input-group mb-4">
+          <input
+            id="nuevaRecomendacion"
+            name="nuevaRecomendacion"
+            type="text"
+            className="form-control"
+            placeholder="Ej: Realizar diariamente las 4 comidas principales y 2 colaciones..."
+            value={nuevaRecomendacion}
+            onChange={(e) => setNuevaRecomendacion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                agregarRecomendacion();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="btn btn-outline-success"
+            onClick={agregarRecomendacion}
+          >
+            + Agregar
+          </button>
+        </div>
 
         <hr className="my-4" />
 
@@ -599,7 +994,7 @@ export const FormularioPlanComidas = ({
             name="nuevaAdvertencia"
             type="text"
             className="form-control"
-            placeholder="Escriba una recomendación adicional..."
+            placeholder="Escriba una advertencia adicional..."
             value={nuevaAdvertencia}
             onChange={(e) => setNuevaAdvertencia(e.target.value)}
             onKeyDown={(e) => {

@@ -12,7 +12,8 @@ body{
   color: var(--sidebar-text) !important;
   width: 280px !important;
   min-width: 280px !important;
-  height: 100%;
+  min-height: 100vh;
+  height: auto;
   border-right: 3px solid var(--borde-1);
   box-shadow: 
     4px 0 0 0 var(--borde-2),  
@@ -74,6 +75,24 @@ body{
   background-color: #3d6e3d;
   border-color: #2e542e;
   color: #ffffff;
+}
+
+@media print {
+  .no-print,
+  nav,
+  aside,
+  .custom-sidebar {
+    display: none !important;
+  }
+
+  .informe-printable {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+  }
 }
 
 @media (max-width: 767.98px) {
