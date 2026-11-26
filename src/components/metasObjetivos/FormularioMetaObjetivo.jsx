@@ -3,6 +3,7 @@ import clientesAxios from "../../config/axios.js";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const toInputDate = (valor) => {
   if (!valor) return "";
@@ -74,8 +75,12 @@ export const FormularioMetaObjetivo = ({
     const cargarCatalogos = async () => {
       try {
         const [resPac, resCons] = await Promise.all([
-          clientesAxios.get("/pacientes"),
-          clientesAxios.get("/consulta").catch(() => ({ data: [] })),
+          clientesAxios.get("/pacientes", {
+            params: PARAMETROS_LISTADO_COMPLETO,
+          }),
+          clientesAxios
+            .get("/consulta", { params: PARAMETROS_LISTADO_COMPLETO })
+            .catch(() => ({ data: [] })),
         ]);
         if (!activo) return;
 

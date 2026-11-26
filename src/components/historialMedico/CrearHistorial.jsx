@@ -4,6 +4,7 @@ import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect";
 import { CustomButton } from "../ui/CustomButton";
 import clientesAxios from "../../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 import { CustomCheckboxGroup } from "../ui/CustomCheckboxGroup";
 import { MedicamentosFormList } from "./MedicamentosFormList";
 
@@ -52,14 +53,20 @@ export const CrearHistorial = () => {
   const [formData, setFormData] = useState(estadoInicial);
   const [pacientesOptions, setPacientesOptions] = useState([]);
   const [errorServer, setErrorServer] = useState("");
+  const [requiereConsulta, setRequiereConsulta] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
+    let activo = true;
+
     const fetchPacientes = async () => {
       try {
-        const { data } = await clientesAxios.get("/pacientes");
+        const { data } = await clientesAxios.get("/pacientes", {
+          params: PARAMETROS_LISTADO_COMPLETO,
+        });
+        if (!activo) return;
         const lista = Array.isArray(data)
           ? data
           : data.pacientes || data.data || data.docs || [];
@@ -72,11 +79,17 @@ export const CrearHistorial = () => {
         console.error("Error al cargar pacientes:", err);
       }
     };
+
     fetchPacientes();
+    return () => {
+      activo = false;
+    };
   }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setErrorServer("");
+    setRequiereConsulta(false);
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -138,7 +151,14 @@ export const CrearHistorial = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorServer("");
+    setRequiereConsulta(false);
     setSuccessMsg("");
+
+    if (!formData.pacienteId) {
+      setErrorServer("Seleccioná un paciente antes de guardar.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -155,36 +175,38 @@ export const CrearHistorial = () => {
         patologiasActuales: separarPorComas(formData.patologiasTexto),
         alergiasIntolerancias: separarPorComas(formData.alergiasTexto),
         antecedentes: {
-          obesidad: formData.antecedentes.obesidad,
-          diabetes: formData.antecedentes.diabetes,
-          cardiopatias: formData.antecedentes.cardiopatias,
-          cancer: formData.antecedentes.cancer,
-          observaciones:
-            formData.antecedentes.observaciones.trim() || undefined,
+          obesidad: Boolean(formData.antecedentes.obesidad),
+          diabetes: Boolean(formData.antecedentes.diabetes),
+          cardiopatias: Boolean(formData.antecedentes.cardiopatias),
+          cancer: Boolean(formData.antecedentes.cancer),
+          observaciones: formData.antecedentes.observaciones.trim(),
         },
         medicamentosSuplementos: medicamentosLimpios,
         saludDigestiva: {
-          acidez: formData.saludDigestiva.acidez,
-          transitoIntestinal:
-            formData.saludDigestiva.transitoIntestinal.trim() || undefined,
-          distension: formData.saludDigestiva.distension,
-          observaciones:
-            formData.saludDigestiva.observaciones.trim() || undefined,
+          acidez: Boolean(formData.saludDigestiva.acidez),
+          transitoIntestinal: formData.saludDigestiva.transitoIntestinal.trim(),
+          distension: Boolean(formData.saludDigestiva.distension),
+          observaciones: formData.saludDigestiva.observaciones.trim(),
         },
         observacionesGinecoObstetricas:
-          formData.observacionesGinecoObstetricas.trim() || undefined,
+          formData.observacionesGinecoObstetricas.trim(),
       };
 
       await clientesAxios.post("/historial-medico", payload);
       setSuccessMsg("¡Historial médico registrado con éxito!");
       setTimeout(() => navigate("/historial-medico"), 1500);
     } catch (err) {
-      console.error(err);
-      setErrorServer(
-        err.response?.data?.mensaje ||
-          err.response?.data?.error ||
-          "Error al registrar el historial médico.",
-      );
+      console.error("Error al crear historial:", err?.response?.data || err);
+      const dataError = err?.response?.data || err || {};
+      const mensaje = dataError.mensaje;
+      const detalle = dataError.error;
+      const textoError =
+        detalle && mensaje
+          ? `${mensaje}: ${detalle}`
+          : mensaje || detalle || "Error al registrar el historial médico.";
+
+      setErrorServer(textoError);
+      setRequiereConsulta(textoError.toLowerCase().includes("consulta médica"));
     } finally {
       setLoading(false);
     }
@@ -198,10 +220,25 @@ export const CrearHistorial = () => {
         </h3>
 
         {errorServer && (
-          <div className="alert alert-danger py-2 small">{errorServer}</div>
+          <div className="alert alert-danger py-2 small" role="alert">
+            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <span>{errorServer}</span>
+              {requiereConsulta && (
+                <CustomButton
+                  type="button"
+                  variant="outline-danger"
+                  onClick={() => navigate("/consulta/nueva")}
+                >
+                  Crear consulta médica
+                </CustomButton>
+              )}
+            </div>
+          </div>
         )}
         {successMsg && (
-          <div className="alert alert-success py-2 small">{successMsg}</div>
+          <div className="alert alert-success py-2 small" role="alert">
+            {successMsg}
+          </div>
         )}
 
         <form onSubmit={handleSubmit}>

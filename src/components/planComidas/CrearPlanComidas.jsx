@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { crearPlanComidas } from "../../services/planComidas.service.js";
 import { FormularioPlanComidas } from "./FormularioPlanComidas";
+import { CustomButton } from "../ui/CustomButton.jsx";
 
 export const CrearPlanComidas = () => {
   const navigate = useNavigate();
@@ -30,12 +31,16 @@ export const CrearPlanComidas = () => {
   };
 
   return (
-    <div className="container-fluid py-4">
+    <div className="container py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="mb-0">Nuevo Plan de Comidas</h2>
-        <Link to="/planes-comidas" className="btn btn-outline-secondary">
+        <h3 className="fw-bold text-success mb-0">Nuevo Plan de Comidas</h3>
+        <CustomButton
+          type="button"
+          variant="secondary"
+          onClick={() => navigate("/planes-comidas")}
+        >
           Volver al listado
-        </Link>
+        </CustomButton>
       </div>
 
       {error && (

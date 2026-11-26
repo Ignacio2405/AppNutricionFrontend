@@ -4,6 +4,7 @@ import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect";
 import { CustomButton } from "../ui/CustomButton";
 import clientesAxios from "../../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 import { CustomCheckboxGroup } from "../ui/CustomCheckboxGroup";
 import { MedicamentosFormList } from "./MedicamentosFormList";
 
@@ -21,111 +22,136 @@ const OPCIONES_SALUD_DIGESTIVA = [
 
 const medicamentoVacio = { nombre: "", dosis: "", frecuencia: "" };
 
+const estadoFormularioVacio = {
+  pacienteId: "",
+  patologiasTexto: "",
+  alergiasTexto: "",
+  antecedentes: {
+    obesidad: false,
+    diabetes: false,
+    cardiopatias: false,
+    cancer: false,
+    observaciones: "",
+  },
+  medicamentosSuplementos: [{ ...medicamentoVacio }],
+  saludDigestiva: {
+    acidez: false,
+    transitoIntestinal: "",
+    distension: false,
+    observaciones: "",
+  },
+  observacionesGinecoObstetricas: "",
+};
+
 const separarPorComas = (texto) =>
-  texto
+  String(texto || "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+
+const extraerListaPacientes = (raw) => {
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.pacientes)) return raw.pacientes;
+  if (Array.isArray(raw?.data)) return raw.data;
+  if (Array.isArray(raw?.data?.pacientes)) return raw.data.pacientes;
+  if (Array.isArray(raw?.docs)) return raw.docs;
+  return [];
+};
 
 export const EditarHistorial = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    pacienteId: "",
-    patologiasTexto: "",
-    alergiasTexto: "",
-    antecedentes: {
-      obesidad: false,
-      diabetes: false,
-      cardiopatias: false,
-      cancer: false,
-      observaciones: "",
-    },
-    medicamentosSuplementos: [{ ...medicamentoVacio }],
-    saludDigestiva: {
-      acidez: false,
-      transitoIntestinal: "",
-      distension: false,
-      observaciones: "",
-    },
-    observacionesGinecoObstetricas: "",
-  });
-
+  const [formData, setFormData] = useState(estadoFormularioVacio);
   const [pacientesOptions, setPacientesOptions] = useState([]);
-  const [cargandoDatos, setCargandoDatos] = useState(true);
+  const [cargandoDatos, setCargandoDatos] = useState(Boolean(id));
   const [errorServer, setErrorServer] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
+
     let activo = true;
 
     const cargarDatos = async () => {
       try {
-        setCargandoDatos(true);
         const [resHistorial, resPacientes] = await Promise.all([
           clientesAxios.get(`/historial-medico/${id}`),
-          clientesAxios.get("/pacientes"),
+          clientesAxios.get("/pacientes", {
+            params: PARAMETROS_LISTADO_COMPLETO,
+          }),
         ]);
 
         if (!activo) return;
 
-        const h = resHistorial.data?.data || resHistorial.data;
-        const listaPacientes = Array.isArray(resPacientes.data)
-          ? resPacientes.data
-          : resPacientes.data.pacientes ||
-            resPacientes.data.data ||
-            resPacientes.data.docs ||
-            [];
+        const h =
+          resHistorial.data?.data ||
+          resHistorial.data?.historial ||
+          resHistorial.data;
 
+        const listaPacientes = extraerListaPacientes(resPacientes.data);
         setPacientesOptions(
           listaPacientes.map((p) => ({
-            value: p._id,
-            label: `${p.apellido}, ${p.nombre} (DNI: ${p.dni})`,
+            value: p._id || p.id,
+            label:
+              `${p.apellido || ""}, ${p.nombre || ""}${p.dni ? ` (DNI: ${p.dni})` : ""}`.trim(),
           })),
         );
 
         const pacId =
-          typeof h.pacienteId === "object" ? h.pacienteId?._id : h.pacienteId;
+          typeof h?.pacienteId === "object"
+            ? h.pacienteId?._id || h.pacienteId?.id
+            : h?.pacienteId;
 
         setFormData({
-          pacienteId: pacId || "",
-          patologiasTexto: (h.patologiasActuales || []).join(", "),
-          alergiasTexto: (h.alergiasIntolerancias || []).join(", "),
+          pacienteId: pacId ? String(pacId) : "",
+          patologiasTexto: Array.isArray(h?.patologiasActuales)
+            ? h.patologiasActuales.join(", ")
+            : "",
+          alergiasTexto: Array.isArray(h?.alergiasIntolerancias)
+            ? h.alergiasIntolerancias.join(", ")
+            : "",
           antecedentes: {
-            obesidad: Boolean(h.antecedentes?.obesidad),
-            diabetes: Boolean(h.antecedentes?.diabetes),
-            cardiopatias: Boolean(h.antecedentes?.cardiopatias),
-            cancer: Boolean(h.antecedentes?.cancer),
-            observaciones: h.antecedentes?.observaciones || "",
+            obesidad: Boolean(h?.antecedentes?.obesidad),
+            diabetes: Boolean(h?.antecedentes?.diabetes),
+            cardiopatias: Boolean(h?.antecedentes?.cardiopatias),
+            cancer: Boolean(h?.antecedentes?.cancer),
+            observaciones: h?.antecedentes?.observaciones || "",
           },
-          medicamentosSuplementos: h.medicamentosSuplementos?.length
-            ? h.medicamentosSuplementos.map((m) => ({
-                nombre: m.nombre || "",
-                dosis: m.dosis || "",
-                frecuencia: m.frecuencia || "",
-              }))
-            : [{ ...medicamentoVacio }],
+          medicamentosSuplementos:
+            Array.isArray(h?.medicamentosSuplementos) &&
+            h.medicamentosSuplementos.length > 0
+              ? h.medicamentosSuplementos.map((m) => ({
+                  nombre: m.nombre || "",
+                  dosis: m.dosis || "",
+                  frecuencia: m.frecuencia || "",
+                }))
+              : [{ ...medicamentoVacio }],
           saludDigestiva: {
-            acidez: Boolean(h.saludDigestiva?.acidez),
-            transitoIntestinal: h.saludDigestiva?.transitoIntestinal || "",
-            distension: Boolean(h.saludDigestiva?.distension),
-            observaciones: h.saludDigestiva?.observaciones || "",
+            acidez: Boolean(h?.saludDigestiva?.acidez),
+            transitoIntestinal: h?.saludDigestiva?.transitoIntestinal || "",
+            distension: Boolean(h?.saludDigestiva?.distension),
+            observaciones: h?.saludDigestiva?.observaciones || "",
           },
           observacionesGinecoObstetricas:
-            h.observacionesGinecoObstetricas || "",
+            h?.observacionesGinecoObstetricas || "",
         });
+        setErrorServer("");
       } catch (err) {
         if (!activo) return;
         console.error("Error al cargar historial:", err);
-        setErrorServer("No se pudo cargar el historial médico.");
+        setErrorServer(
+          err.response?.data?.mensaje ||
+            "No se pudo cargar el historial médico.",
+        );
       } finally {
         if (activo) setCargandoDatos(false);
       }
     };
 
     cargarDatos();
+
     return () => {
       activo = false;
     };
@@ -195,14 +221,20 @@ export const EditarHistorial = () => {
     e.preventDefault();
     setErrorServer("");
     setSuccessMsg("");
+
+    if (!id) {
+      setErrorServer("ID de historial médico no válido.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const medicamentosLimpios = formData.medicamentosSuplementos
         .map((m) => ({
-          nombre: m.nombre.trim(),
-          dosis: m.dosis.trim() || undefined,
-          frecuencia: m.frecuencia.trim() || undefined,
+          nombre: String(m.nombre || "").trim(),
+          dosis: String(m.dosis || "").trim(),
+          frecuencia: String(m.frecuencia || "").trim(),
         }))
         .filter((m) => m.nombre);
 
@@ -210,36 +242,42 @@ export const EditarHistorial = () => {
         patologiasActuales: separarPorComas(formData.patologiasTexto),
         alergiasIntolerancias: separarPorComas(formData.alergiasTexto),
         antecedentes: {
-          obesidad: formData.antecedentes.obesidad,
-          diabetes: formData.antecedentes.diabetes,
-          cardiopatias: formData.antecedentes.cardiopatias,
-          cancer: formData.antecedentes.cancer,
-          observaciones:
-            formData.antecedentes.observaciones.trim() || undefined,
+          obesidad: Boolean(formData.antecedentes.obesidad),
+          diabetes: Boolean(formData.antecedentes.diabetes),
+          cardiopatias: Boolean(formData.antecedentes.cardiopatias),
+          cancer: Boolean(formData.antecedentes.cancer),
+          observaciones: String(
+            formData.antecedentes.observaciones || "",
+          ).trim(),
         },
         medicamentosSuplementos: medicamentosLimpios,
         saludDigestiva: {
-          acidez: formData.saludDigestiva.acidez,
-          transitoIntestinal:
-            formData.saludDigestiva.transitoIntestinal.trim() || undefined,
-          distension: formData.saludDigestiva.distension,
-          observaciones:
-            formData.saludDigestiva.observaciones.trim() || undefined,
+          acidez: Boolean(formData.saludDigestiva.acidez),
+          transitoIntestinal: String(
+            formData.saludDigestiva.transitoIntestinal || "",
+          ).trim(),
+          distension: Boolean(formData.saludDigestiva.distension),
+          observaciones: String(
+            formData.saludDigestiva.observaciones || "",
+          ).trim(),
         },
-        observacionesGinecoObstetricas:
-          formData.observacionesGinecoObstetricas.trim() || undefined,
+        observacionesGinecoObstetricas: String(
+          formData.observacionesGinecoObstetricas || "",
+        ).trim(),
       };
 
       await clientesAxios.put(`/historial-medico/${id}`, payload);
       setSuccessMsg("¡Historial médico actualizado con éxito!");
       window.scrollTo({ top: 0, behavior: "smooth" });
-      setTimeout(() => navigate("/historial-medico"), 1500);
+      setTimeout(() => navigate(`/historial-medico/${id}`), 1500);
     } catch (err) {
-      console.error(err);
+      console.error("Error al actualizar historial:", err);
+      const mensaje = err.response?.data?.mensaje;
+      const detalle = err.response?.data?.error;
       setErrorServer(
-        err.response?.data?.mensaje ||
-          err.response?.data?.error ||
-          "Error al actualizar el historial médico.",
+        detalle && mensaje
+          ? `${mensaje}: ${detalle}`
+          : mensaje || detalle || "Error al actualizar el historial médico.",
       );
       window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
@@ -255,16 +293,23 @@ export const EditarHistorial = () => {
     );
   }
 
+  const errorVisible =
+    errorServer || (!id ? "ID de historial médico no válido." : "");
+
   return (
     <div className="container py-4" style={{ maxWidth: "860px" }}>
       <div className="card shadow-sm border-0 p-4 rounded-4">
         <h3 className="fw-bold text-success mb-3">Editar Historial Médico</h3>
 
-        {errorServer && (
-          <div className="alert alert-danger py-2 small">{errorServer}</div>
+        {errorVisible && (
+          <div className="alert alert-danger py-2 small" role="alert">
+            {errorVisible}
+          </div>
         )}
         {successMsg && (
-          <div className="alert alert-success py-2 small">{successMsg}</div>
+          <div className="alert alert-success py-2 small" role="alert">
+            {successMsg}
+          </div>
         )}
 
         <form onSubmit={handleSubmit}>
@@ -284,6 +329,7 @@ export const EditarHistorial = () => {
                 name="patologiasTexto"
                 value={formData.patologiasTexto}
                 onChange={handleChange}
+                placeholder="Ej. Hipertensión, Diabetes, Hipotiroidismo"
               />
             </div>
             <div className="col-md-6">
@@ -292,6 +338,7 @@ export const EditarHistorial = () => {
                 name="alergiasTexto"
                 value={formData.alergiasTexto}
                 onChange={handleChange}
+                placeholder="Ej. Intolerancia a la lactosa, Frutos secos"
               />
             </div>
           </div>
@@ -309,6 +356,7 @@ export const EditarHistorial = () => {
             name="observaciones"
             value={formData.antecedentes.observaciones}
             onChange={handleAntecedenteChange}
+            placeholder="Antecedentes familiares o detalles adicionales..."
           />
 
           <hr className="my-3" />
@@ -335,6 +383,7 @@ export const EditarHistorial = () => {
                 name="transitoIntestinal"
                 value={formData.saludDigestiva.transitoIntestinal}
                 onChange={handleDigestivaChange}
+                placeholder="Ej. Regular diario, estreñimiento..."
               />
             </div>
             <div className="col-md-6">
@@ -343,6 +392,7 @@ export const EditarHistorial = () => {
                 name="observaciones"
                 value={formData.saludDigestiva.observaciones}
                 onChange={handleDigestivaChange}
+                placeholder="Síntomas o detalles digestivos..."
               />
             </div>
           </div>
@@ -356,13 +406,14 @@ export const EditarHistorial = () => {
             name="observacionesGinecoObstetricas"
             value={formData.observacionesGinecoObstetricas}
             onChange={handleChange}
+            placeholder="Ciclos, embarazos, lactancia u otras notas..."
           />
 
           <div className="d-flex justify-content-end gap-2 mt-4">
             <CustomButton
               type="button"
               variant="secondary"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/historial-medico")}
             >
               Cancelar
             </CustomButton>

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { crearTurno } from "../../services/turno.service.js";
 import { FormularioTurno } from "./FormularioTurno.jsx";
+import { CustomButton } from "../ui/CustomButton.jsx";
 
 export const CrearTurno = () => {
   const navigate = useNavigate();
@@ -29,12 +30,16 @@ export const CrearTurno = () => {
   };
 
   return (
-    <div className="container-fluid py-4">
+    <div className="container py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="mb-0">Nuevo Turno</h2>
-        <Link to="/turnos" className="btn btn-outline-secondary">
+        <h3 className="fw-bold text-success mb-0">Nuevo Turno</h3>
+        <CustomButton
+          type="button"
+          variant="secondary"
+          onClick={() => navigate("/turnos")}
+        >
           Volver al listado
-        </Link>
+        </CustomButton>
       </div>
 
       {error && (

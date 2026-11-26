@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BsTrash } from "react-icons/bs";
 import clientesAxios from "../../config/axios.js";
 import {
@@ -6,8 +6,11 @@ import {
   desactivarExcepcionAgenda,
   obtenerExcepcionesAgenda,
 } from "../../services/excepcionAgenda.service.js";
+import { CustomSelect } from "../ui/CustomSelect.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
 import { FormularioExcepcionAgenda } from "./FormularioExcepcionAgenda.jsx";
+import { LIMITE_POR_PAGINA, Paginacion } from "../ui/Paginacion.jsx";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const formatearFecha = (fecha) => {
   if (!fecha) return "—";
@@ -37,6 +40,8 @@ const etiquetaTipo = (tipo) => {
 
 export const ExcepcionesAgenda = () => {
   const [excepciones, setExcepciones] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [paginacion, setPaginacion] = useState({});
   const [medicos, setMedicos] = useState([]);
   const [medicoFiltro, setMedicoFiltro] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
@@ -50,7 +55,9 @@ export const ExcepcionesAgenda = () => {
     let activo = true;
     const cargarMedicos = async () => {
       try {
-        const { data } = await clientesAxios.get("/medicos");
+        const { data } = await clientesAxios.get("/medicos", {
+          params: PARAMETROS_LISTADO_COMPLETO,
+        });
         if (!activo) return;
         const lista = Array.isArray(data?.data)
           ? data.data
@@ -70,29 +77,55 @@ export const ExcepcionesAgenda = () => {
     };
   }, []);
 
-  const recargarExcepciones = useCallback(async (idMedico = "") => {
-    setError("");
-    try {
-      const params = idMedico ? { medico: idMedico } : {};
-      const res = await obtenerExcepcionesAgenda(params);
-      setExcepciones(Array.isArray(res?.data) ? res.data : []);
-    } catch (err) {
-      setError(
-        err.response?.data?.mensaje ||
-          "No se pudieron cargar las excepciones de agenda.",
-      );
-    }
-  }, []);
+  const opcionesMedicos = useMemo(
+    () =>
+      medicos.map((m) => ({
+        value: m._id,
+        label:
+          `${m.apellido || ""}, ${m.nombre || ""}`.replace(
+            /^,\s*|,\s*$/g,
+            "",
+          ) || "Médico",
+      })),
+    [medicos],
+  );
+
+  const recargarExcepciones = useCallback(
+    async (idMedico = "", paginaActual = pagina) => {
+      setError("");
+      try {
+        const params = {
+          page: paginaActual,
+          limit: LIMITE_POR_PAGINA,
+          ...(idMedico ? { medico: idMedico } : {}),
+        };
+        const res = await obtenerExcepcionesAgenda(params);
+        setExcepciones(Array.isArray(res?.data) ? res.data : []);
+        setPaginacion(res?.pagination || {});
+      } catch (err) {
+        setError(
+          err.response?.data?.mensaje ||
+            "No se pudieron cargar las excepciones de agenda.",
+        );
+      }
+    },
+    [pagina],
+  );
 
   useEffect(() => {
     let activo = true;
 
     const fetchExcepciones = async () => {
       try {
-        const params = medicoFiltro ? { medico: medicoFiltro } : {};
+        const params = {
+          page: pagina,
+          limit: LIMITE_POR_PAGINA,
+          ...(medicoFiltro ? { medico: medicoFiltro } : {}),
+        };
         const res = await obtenerExcepcionesAgenda(params);
         if (!activo) return;
         setExcepciones(Array.isArray(res?.data) ? res.data : []);
+        setPaginacion(res?.pagination || {});
         setError("");
       } catch (err) {
         if (!activo) return;
@@ -109,16 +142,18 @@ export const ExcepcionesAgenda = () => {
     return () => {
       activo = false;
     };
-  }, [medicoFiltro]);
+  }, [medicoFiltro, pagina]);
 
   const handleFiltroMedicoChange = (e) => {
     setLoading(true);
     setMedicoFiltro(e.target.value);
+    setPagina(1);
   };
 
   const handleLimpiarFiltro = () => {
     setLoading(true);
     setMedicoFiltro("");
+    setPagina(1);
   };
 
   const handleCrear = async (payload) => {
@@ -131,7 +166,7 @@ export const ExcepcionesAgenda = () => {
         res?.mensaje || "Excepción de agenda registrada correctamente.",
       );
       setMostrarFormulario(false);
-      await recargarExcepciones(medicoFiltro);
+      await recargarExcepciones(medicoFiltro, pagina);
     } catch (err) {
       setError(
         err.response?.data?.mensaje ||
@@ -143,6 +178,11 @@ export const ExcepcionesAgenda = () => {
   };
 
   const handleDesactivar = async (id) => {
+    const confirmar = window.confirm(
+      "¿De verdad querés desactivar esta excepción de agenda?",
+    );
+    if (!confirmar) return;
+
     setAccionId(id);
     setError("");
     setMensajeExito("");
@@ -152,7 +192,7 @@ export const ExcepcionesAgenda = () => {
         res?.mensaje ||
           "Excepción desactivada. El médico recupera su horario habitual.",
       );
-      await recargarExcepciones(medicoFiltro);
+      await recargarExcepciones(medicoFiltro, pagina);
     } catch (err) {
       setError(
         err.response?.data?.mensaje ||
@@ -183,25 +223,16 @@ export const ExcepcionesAgenda = () => {
         {/* Filtro por médico */}
         <div className="row g-2 align-items-end">
           <div className="col-sm-6 col-md-4">
-            <label
-              htmlFor="filtroMedicoExcepcion"
-              className="form-label small fw-semibold mb-1"
-            >
-              Filtrar por médico
-            </label>
-            <select
+            <CustomSelect
+              label="Filtrar por médico"
               id="filtroMedicoExcepcion"
-              className="form-select"
+              name="filtroMedicoExcepcion"
               value={medicoFiltro}
+              options={opcionesMedicos}
+              placeholder="Todos los médicos (escriba para buscar)..."
+              className="mb-0"
               onChange={handleFiltroMedicoChange}
-            >
-              <option value="">Todos los médicos</option>
-              {medicos.map((m) => (
-                <option key={m._id} value={m._id}>
-                  {m.apellido || ""}, {m.nombre || ""}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {medicoFiltro && (
@@ -317,6 +348,15 @@ export const ExcepcionesAgenda = () => {
             </tbody>
           </table>
         </div>
+        <Paginacion
+          pagina={pagina}
+          paginacion={paginacion}
+          onCambiarPagina={(nuevaPagina) => {
+            setLoading(true);
+            setPagina(nuevaPagina);
+          }}
+          cargando={loading}
+        />
       </div>
     </div>
   );

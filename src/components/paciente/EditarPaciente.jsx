@@ -4,6 +4,7 @@ import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect";
 import { CustomButton } from "../ui/CustomButton";
 import clientesAxios from "../../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const toInputDate = (fecha) => {
   if (!fecha) return "";
@@ -23,6 +24,54 @@ const extraerListaObras = (resData) => {
   if (Array.isArray(resData?.obrasSociales)) return resData.obrasSociales;
   if (Array.isArray(resData)) return resData;
   return [];
+};
+
+const obtenerMensajeErrorEspecifico = (err) => {
+  const status = err?.response?.status;
+  const data = err?.response?.data || err || {};
+
+  const mensajeBackend = String(data.mensaje || "").trim();
+  const detalleBackend = String(data.error || "").trim();
+  const combinado = `${mensajeBackend} ${detalleBackend}`.toLowerCase();
+
+  const camposDuplicados = Object.keys(data.keyPattern || data.keyValue || {});
+
+  if (
+    status === 409 ||
+    data.code === 11000 ||
+    combinado.includes("11000") ||
+    combinado.includes("duplicate") ||
+    combinado.includes("duplicad")
+  ) {
+    if (camposDuplicados.includes("dni") || combinado.includes("dni")) {
+      return "Ya existe otro paciente registrado con ese DNI.";
+    }
+    if (
+      camposDuplicados.includes("email") ||
+      combinado.includes("email") ||
+      combinado.includes("correo")
+    ) {
+      return "Ya existe otro paciente registrado con ese correo electrónico.";
+    }
+    return (
+      mensajeBackend ||
+      "Ya existe otro registro con uno de los datos ingresados (DNI o correo)."
+    );
+  }
+
+  if (
+    detalleBackend &&
+    mensajeBackend &&
+    !combinado.includes(detalleBackend.toLowerCase())
+  ) {
+    return `${mensajeBackend}: ${detalleBackend}`;
+  }
+
+  return (
+    mensajeBackend ||
+    detalleBackend ||
+    "No se pudieron actualizar los datos del paciente."
+  );
 };
 
 export const EditarPaciente = () => {
@@ -57,7 +106,7 @@ export const EditarPaciente = () => {
         const [resPaciente, resObras] = await Promise.all([
           clientesAxios.get(`/pacientes/${id}`),
           clientesAxios
-            .get("/obraSocial")
+            .get("/obraSocial", { params: PARAMETROS_LISTADO_COMPLETO })
             .catch(() => ({ data: { data: [] } })),
         ]);
 
@@ -72,7 +121,6 @@ export const EditarPaciente = () => {
         const pac = resPaciente?.data?.data || resPaciente?.data || null;
         const obraActualId = extraerId(pac?.obraSocial);
 
-        // Si el paciente tiene una obra social que por algún motivo no vino en la lista, la incluimos
         if (
           obraActualId &&
           !opcionesObras.some((op) => op.value === obraActualId)
@@ -106,22 +154,20 @@ export const EditarPaciente = () => {
       } catch (err) {
         if (!activo) return;
         console.error("Error al cargar paciente para editar:", err);
-        setErrorServer(
-          err.response?.data?.mensaje ||
-            "No se pudieron cargar los datos del paciente.",
-        );
+        setErrorServer(obtenerMensajeErrorEspecifico(err));
       } finally {
         if (activo) setLoading(false);
       }
     };
 
-    cargarDatos();
+    if (id) cargarDatos();
     return () => {
       activo = false;
     };
   }, [id]);
 
   const handleChange = (e) => {
+    setErrorServer("");
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -156,11 +202,7 @@ export const EditarPaciente = () => {
       setTimeout(() => navigate("/customers"), 1500);
     } catch (err) {
       console.error("Error al actualizar paciente:", err);
-      setErrorServer(
-        err.response?.data?.mensaje ||
-          err.response?.data?.error ||
-          "Error al actualizar el paciente.",
-      );
+      setErrorServer(obtenerMensajeErrorEspecifico(err));
       window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setSubmitting(false);
@@ -184,10 +226,14 @@ export const EditarPaciente = () => {
         <h3 className="fw-bold text-success mb-3">Editar Paciente</h3>
 
         {errorServer && (
-          <div className="alert alert-danger py-2 small">{errorServer}</div>
+          <div className="alert alert-danger py-2 small" role="alert">
+            {errorServer}
+          </div>
         )}
         {successMsg && (
-          <div className="alert alert-success py-2 small">{successMsg}</div>
+          <div className="alert alert-success py-2 small" role="alert">
+            {successMsg}
+          </div>
         )}
 
         <form onSubmit={handleSubmit}>
@@ -322,12 +368,6 @@ export const EditarPaciente = () => {
               />
             </div>
           </div>
-
-          {successMsg && (
-            <div className="alert alert-success py-2 small mt-3 mb-0">
-              {successMsg}
-            </div>
-          )}
 
           <div className="d-flex justify-content-end gap-2 mt-4">
             <CustomButton

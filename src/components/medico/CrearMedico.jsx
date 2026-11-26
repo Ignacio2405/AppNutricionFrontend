@@ -4,6 +4,7 @@ import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
 import clientesAxios from "../../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 export const CrearMedico = () => {
   const [formData, setFormData] = useState({
@@ -14,9 +15,10 @@ export const CrearMedico = () => {
     telefonoTipo: "celular",
     codigoArea: "",
     numeroTelefono: "",
-    obraSocialId: "",
+    obrasSocialesIds: [],
   });
 
+  const [obraSocialActual, setObraSocialActual] = useState("");
   const [obrasSociales, setObrasSociales] = useState([]);
   const [errorServer, setErrorServer] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -28,7 +30,9 @@ export const CrearMedico = () => {
 
     const fetchObrasSociales = async () => {
       try {
-        const { data } = await clientesAxios.get("/obraSocial");
+        const { data } = await clientesAxios.get("/obraSocial", {
+          params: PARAMETROS_LISTADO_COMPLETO,
+        });
         if (!activo) return;
 
         const lista = Array.isArray(data?.data)
@@ -60,6 +64,32 @@ export const CrearMedico = () => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleAddObraSocial = () => {
+    if (!obraSocialActual) return;
+
+    setFormData((prev) => {
+      if (prev.obrasSocialesIds.includes(obraSocialActual)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        obrasSocialesIds: [...prev.obrasSocialesIds, obraSocialActual],
+      };
+    });
+
+    setObraSocialActual("");
+  };
+
+  const handleRemoveObraSocial = (idToRemove) => {
+    setFormData((prev) => ({
+      ...prev,
+      obrasSocialesIds: prev.obrasSocialesIds.filter((id) => id !== idToRemove),
+    }));
+  };
+
+  const getLabelObraSocial = (id) =>
+    obrasSociales.find((os) => os.value === id)?.label || id;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorServer("");
@@ -77,7 +107,7 @@ export const CrearMedico = () => {
           codigoArea: formData.codigoArea.trim(),
           numero: formData.numeroTelefono.trim(),
         },
-        obraSocial: formData.obraSocialId ? [formData.obraSocialId] : [],
+        obraSocial: formData.obrasSocialesIds,
       };
 
       await clientesAxios.post("/medicos", payload);
@@ -94,6 +124,11 @@ export const CrearMedico = () => {
       setLoading(false);
     }
   };
+
+  // Opcional: ocultar del dropdown las que ya fueron agregadas
+  const opcionesDisponibles = obrasSociales.filter(
+    (os) => !formData.obrasSocialesIds.includes(os.value),
+  );
 
   return (
     <div className="container py-4" style={{ maxWidth: "700px" }}>
@@ -191,18 +226,48 @@ export const CrearMedico = () => {
             </div>
           </div>
 
-          <div className="row">
-            <div className="col-md-12">
+          <div className="row align-items-end">
+            <div className="col-md-9">
               <CustomSelect
-                label="Obra Social (Opcional)"
-                id="obraSocialId"
-                name="obraSocialId"
-                value={formData.obraSocialId}
-                onChange={handleChange}
-                options={obrasSociales}
+                label="Obras Sociales (Opcional)"
+                id="obraSocialSelect"
+                name="obraSocialSelect"
+                value={obraSocialActual}
+                onChange={(e) => setObraSocialActual(e.target.value)}
+                options={opcionesDisponibles}
               />
             </div>
+            <div className="col-md-3 mb-3">
+              <CustomButton
+                type="button"
+                variant="outline-success"
+                onClick={handleAddObraSocial}
+                disabled={!obraSocialActual}
+              >
+                + Agregar
+              </CustomButton>
+            </div>
           </div>
+
+          {formData.obrasSocialesIds.length > 0 && (
+            <div className="mb-3 d-flex flex-wrap gap-2">
+              {formData.obrasSocialesIds.map((id) => (
+                <span
+                  key={id}
+                  className="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-2 py-2 px-3 rounded-pill"
+                >
+                  <span>{getLabelObraSocial(id)}</span>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-sm"
+                    style={{ fontSize: "0.65rem" }}
+                    aria-label="Quitar obra social"
+                    onClick={() => handleRemoveObraSocial(id)}
+                  />
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="d-flex justify-content-end gap-2 mt-4">
             <CustomButton

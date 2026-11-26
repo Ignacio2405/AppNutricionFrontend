@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { BsEye, BsPencilSquare, BsTrash } from "react-icons/bs";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { LIMITE_POR_PAGINA, Paginacion } from "../ui/Paginacion.jsx";
 import clientesAxios from "../../config/axios.js";
 
 export const ListarObrasSociales = () => {
   const [obrasSociales, setObrasSociales] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [paginacion, setPaginacion] = useState({});
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -17,10 +20,13 @@ export const ListarObrasSociales = () => {
 
     const fetchObrasSociales = async () => {
       try {
-        const { data } = await clientesAxios.get("/obraSocial");
+        const { data } = await clientesAxios.get("/obraSocial", {
+          params: { page: pagina, limit: LIMITE_POR_PAGINA },
+        });
         if (!activo) return;
 
         setObrasSociales(Array.isArray(data?.data) ? data.data : []);
+        setPaginacion(data?.pagination || {});
       } catch (err) {
         if (!activo) return;
         console.error("Error al cargar obras sociales:", err);
@@ -37,7 +43,7 @@ export const ListarObrasSociales = () => {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [pagina]);
 
   const handleEliminar = async (id) => {
     const confirmar = window.confirm("¿Deseás dar de baja esta obra social?");
@@ -105,7 +111,10 @@ export const ListarObrasSociales = () => {
             <CustomInput
               name="busquedaObraSocial"
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => {
+                setBusqueda(e.target.value);
+                setPagina(1);
+              }}
               placeholder="Buscar por razón social, CUIT o dirección..."
             />
           </div>
@@ -179,6 +188,15 @@ export const ListarObrasSociales = () => {
             </table>
           </div>
         )}
+        <Paginacion
+          pagina={pagina}
+          paginacion={paginacion}
+          onCambiarPagina={(nuevaPagina) => {
+            setLoading(true);
+            setPagina(nuevaPagina);
+          }}
+          cargando={loading}
+        />
       </div>
     </div>
   );

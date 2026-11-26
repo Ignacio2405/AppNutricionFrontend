@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CustomButton } from "../ui/CustomButton";
 import clientesAxios from "../../config/axios.js";
+import { obtenerUsuarioDesdeToken } from "../utils/authToken.js";
 
 export const DetalleHistorial = () => {
   const { id } = useParams();
@@ -9,21 +10,37 @@ export const DetalleHistorial = () => {
   const [historial, setHistorial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const usuario = obtenerUsuarioDesdeToken();
+  const esPaciente =
+    String(usuario?.rol || "").trim().toUpperCase() === "PACIENTE";
 
   useEffect(() => {
+    let activo = true;
+
     const fetchDetalle = async () => {
       try {
         setLoading(true);
+        setErrorMsg("");
         const { data } = await clientesAxios.get(`/historial-medico/${id}`);
+        if (!activo) return;
         setHistorial(data?.data || data);
       } catch (err) {
         console.error("Error al obtener detalle del historial:", err);
-        setErrorMsg("No se pudo cargar el detalle del historial médico.");
+        if (activo) {
+          setErrorMsg(
+            err.response?.data?.mensaje ||
+              "No se pudo cargar el detalle del historial médico.",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (activo) setLoading(false);
       }
     };
-    fetchDetalle();
+
+    if (id) fetchDetalle();
+    return () => {
+      activo = false;
+    };
   }, [id]);
 
   if (loading) {
@@ -40,13 +57,17 @@ export const DetalleHistorial = () => {
         <div className="alert alert-danger">
           {errorMsg || "Historial no encontrado."}
         </div>
-        <CustomButton variant="secondary" onClick={() => navigate(-1)}>
+        <CustomButton
+          variant="secondary"
+          onClick={() => navigate("/historial-medico")}
+        >
           Volver
         </CustomButton>
       </div>
     );
   }
 
+  const historialId = historial._id || historial.id || id;
   const pac =
     typeof historial.pacienteId === "object" ? historial.pacienteId : null;
 
@@ -58,15 +79,17 @@ export const DetalleHistorial = () => {
             Detalle de Historial Médico
           </h3>
           <div className="d-flex gap-2">
-            <CustomButton
-              type="button"
-              variant="outline-primary"
-              onClick={() =>
-                navigate(`/historial-medico/editar/${historial._id}`)
-              }
-            >
-              Editar
-            </CustomButton>
+            {!esPaciente && (
+              <CustomButton
+                type="button"
+                variant="outline-primary"
+                onClick={() =>
+                  navigate(`/historial-medico/editar/${historialId}`)
+                }
+              >
+                Editar
+              </CustomButton>
+            )}
             <CustomButton
               type="button"
               variant="secondary"
@@ -133,7 +156,7 @@ export const DetalleHistorial = () => {
         {historial.medicamentosSuplementos?.length ? (
           <ul className="list-group mb-3">
             {historial.medicamentosSuplementos.map((m, idx) => (
-              <li className="list-group-item" key={idx}>
+              <li className="list-group-item" key={m._id || idx}>
                 <strong>{m.nombre}</strong>
                 {m.dosis ? ` — Dosis: ${m.dosis}` : ""}
                 {m.frecuencia ? ` — Frecuencia: ${m.frecuencia}` : ""}

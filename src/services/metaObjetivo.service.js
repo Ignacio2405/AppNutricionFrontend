@@ -4,7 +4,7 @@ const ENDPOINT = "/metas-objetivos";
 
 export const obtenerMetasObjetivos = async (params = {}) => {
   const { data } = await clientesAxios.get(ENDPOINT, { params });
-  return Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+  return data;
 };
 
 export const obtenerMetaObjetivoPorId = async (id) => {

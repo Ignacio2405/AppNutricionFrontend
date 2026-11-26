@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { obtenerPlanComidasPorId } from "../../services/planComidas.service.js";
+import { obtenerUsuarioDesdeToken } from "../utils/authToken.js";
 import "../../styles/planComidasPrint.css";
 
 const formatearFecha = (fecha) => {
@@ -28,6 +29,9 @@ export const DetallePlanComidas = () => {
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const usuario = obtenerUsuarioDesdeToken();
+  const esPaciente =
+    String(usuario?.rol || "").trim().toUpperCase() === "PACIENTE";
 
   useEffect(() => {
     let ignore = false;
@@ -126,12 +130,14 @@ export const DetallePlanComidas = () => {
         </Link>
 
         <div className="d-flex flex-wrap gap-2">
-          <Link
-            to={`/planes-comidas/${plan._id}/editar`}
-            className="btn btn-warning"
-          >
-            Editar plan
-          </Link>
+          {!esPaciente && (
+            <Link
+              to={`/planes-comidas/${plan._id}/editar`}
+              className="btn btn-warning"
+            >
+              Editar plan
+            </Link>
+          )}
           <button
             type="button"
             className="btn btn-success"

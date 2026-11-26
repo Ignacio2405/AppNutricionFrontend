@@ -2,6 +2,25 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CustomButton } from "../ui/CustomButton";
 import clientesAxios from "../../config/axios.js";
+import { obtenerUsuarioDesdeToken } from "../utils/authToken.js";
+
+const obtenerBodyAge = (consultaObj, resultadosObj) => {
+  const candidatos = [
+    resultadosObj?.bodyAge,
+    resultadosObj?.body_age,
+    resultadosObj?.edadMetabolica,
+    resultadosObj?.edadBiologica,
+    consultaObj?.antropometria?.bodyAge,
+    consultaObj?.antropometria?.body_age,
+    consultaObj?.bodyAge,
+  ];
+
+  const valor = candidatos.find(
+    (v) => v !== undefined && v !== null && String(v).trim() !== "",
+  );
+
+  return valor ?? "-";
+};
 
 export const DetalleConsulta = () => {
   const { id } = useParams();
@@ -9,6 +28,11 @@ export const DetalleConsulta = () => {
   const [consulta, setConsulta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorServer, setErrorServer] = useState("");
+  const usuario = obtenerUsuarioDesdeToken();
+  const esPaciente =
+    String(usuario?.rol || "")
+      .trim()
+      .toUpperCase() === "PACIENTE";
 
   useEffect(() => {
     let cancelado = false;
@@ -65,6 +89,7 @@ export const DetalleConsulta = () => {
   const consultaId = consulta._id || consulta.id || id;
   const mediciones = consulta.antropometria?.mediciones || {};
   const resultados = consulta.antropometria?.resultados || {};
+  const bodyAgeValor = obtenerBodyAge(consulta, resultados);
 
   const nombrePaciente =
     typeof consulta.paciente === "object" && consulta.paciente
@@ -88,12 +113,14 @@ export const DetalleConsulta = () => {
             >
               Volver
             </CustomButton>
-            <CustomButton
-              variant="success"
-              onClick={() => navigate(`/consulta/${consultaId}/editar`)}
-            >
-              Editar Consulta
-            </CustomButton>
+            {!esPaciente && (
+              <CustomButton
+                variant="success"
+                onClick={() => navigate(`/consulta/${consultaId}/editar`)}
+              >
+                Editar Consulta
+              </CustomButton>
+            )}
           </div>
         </div>
 
@@ -184,7 +211,7 @@ export const DetalleConsulta = () => {
             Met. Basal: <strong>{resultados.mBasal ?? "-"}</strong>
           </div>
           <div className="col-6 col-md-4">
-            Body Age: <strong>{resultados.bodyAge ?? "-"}</strong>
+            Body Age: <strong>{bodyAgeValor}</strong>
           </div>
           <div className="col-6 col-md-4">
             Gr. Visceral: <strong>{resultados.grVisceral ?? "-"}</strong>

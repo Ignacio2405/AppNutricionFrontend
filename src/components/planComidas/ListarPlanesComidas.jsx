@@ -3,10 +3,38 @@ import { useNavigate } from "react-router-dom";
 import { BsEye, BsPencilSquare, BsTrash } from "react-icons/bs";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { LIMITE_POR_PAGINA, Paginacion } from "../ui/Paginacion.jsx";
 import {
   obtenerPlanesComidas,
   eliminarPlanComidas,
 } from "../../services/planComidas.service.js";
+
+const obtenerUsuarioToken = () => {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const partes = token.split(".");
+    if (partes.length !== 3) return null;
+
+    const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+        .join(""),
+    );
+
+    const payload = JSON.parse(jsonPayload);
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+};
 
 const formatearFecha = (fecha) => {
   if (!fecha) return "-";
@@ -24,7 +52,13 @@ const formatearPaciente = (paciente) => {
 };
 
 export const ListarPlanesComidas = () => {
+  const usuario = useMemo(() => obtenerUsuarioToken(), []);
+  const rolUsuario = String(usuario?.rol || "").toUpperCase();
+  const esPaciente = rolUsuario === "PACIENTE";
+
   const [planes, setPlanes] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [paginacion, setPaginacion] = useState({});
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -35,10 +69,14 @@ export const ListarPlanesComidas = () => {
 
     const cargarPlanes = async () => {
       try {
-        const res = await obtenerPlanesComidas();
+        const res = await obtenerPlanesComidas({
+          page: pagina,
+          limit: LIMITE_POR_PAGINA,
+        });
         if (!activo) return;
         const lista = Array.isArray(res) ? res : res?.data || res?.planes || [];
         setPlanes(lista);
+        setPaginacion(res?.pagination || {});
       } catch (err) {
         if (!activo) return;
         console.error("Error al cargar planes de comidas:", err);
@@ -55,7 +93,7 @@ export const ListarPlanesComidas = () => {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [pagina]);
 
   const handleEliminar = async (id) => {
     const confirmar = window.confirm(
@@ -96,12 +134,14 @@ export const ListarPlanesComidas = () => {
       <div className="card shadow-sm border-0 p-4 rounded-4">
         <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
           <h3 className="fw-bold text-success mb-0">Planes de Comidas</h3>
-          <CustomButton
-            type="button"
-            onClick={() => navigate("/planes-comidas/nuevo")}
-          >
-            + Nuevo Plan
-          </CustomButton>
+          {!esPaciente && (
+            <CustomButton
+              type="button"
+              onClick={() => navigate("/planes-comidas/nuevo")}
+            >
+              + Nuevo Plan
+            </CustomButton>
+          )}
         </div>
 
         <div className="row mb-3">
@@ -109,7 +149,10 @@ export const ListarPlanesComidas = () => {
             <CustomInput
               name="busquedaPlanes"
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => {
+                setBusqueda(e.target.value);
+                setPagina(1);
+              }}
               placeholder="Buscar por paciente, DNI, título o estado..."
             />
           </div>
@@ -170,30 +213,36 @@ export const ListarPlanesComidas = () => {
                           variant="outline-success"
                           title="Ver plan / PDF"
                           aria-label="Ver plan / PDF"
-                          onClick={() => navigate(`/planes-comidas/${row._id}`)}
+                          onClick={() =>
+                            navigate(`/planes-comidas/${row._id}`)
+                          }
                         >
                           <BsEye size={16} />
                         </CustomButton>
-                        <CustomButton
-                          type="button"
-                          variant="outline-primary"
-                          title="Editar plan"
-                          aria-label="Editar plan"
-                          onClick={() =>
-                            navigate(`/planes-comidas/${row._id}/editar`)
-                          }
-                        >
-                          <BsPencilSquare size={16} />
-                        </CustomButton>
-                        <CustomButton
-                          type="button"
-                          variant="outline-danger"
-                          title="Eliminar plan"
-                          aria-label="Eliminar plan"
-                          onClick={() => handleEliminar(row._id)}
-                        >
-                          <BsTrash size={16} />
-                        </CustomButton>
+                        {!esPaciente && (
+                          <>
+                          <CustomButton
+                            type="button"
+                            variant="outline-primary"
+                            title="Editar plan"
+                            aria-label="Editar plan"
+                            onClick={() =>
+                              navigate(`/planes-comidas/${row._id}/editar`)
+                            }
+                          >
+                            <BsPencilSquare size={16} />
+                          </CustomButton>
+                          <CustomButton
+                            type="button"
+                            variant="outline-danger"
+                            title="Eliminar plan"
+                            aria-label="Eliminar plan"
+                            onClick={() => handleEliminar(row._id)}
+                          >
+                            <BsTrash size={16} />
+                          </CustomButton>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -202,6 +251,15 @@ export const ListarPlanesComidas = () => {
             </table>
           </div>
         )}
+        <Paginacion
+          pagina={pagina}
+          paginacion={paginacion}
+          onCambiarPagina={(nuevaPagina) => {
+            setLoading(true);
+            setPagina(nuevaPagina);
+          }}
+          cargando={loading}
+        />
       </div>
     </div>
   );

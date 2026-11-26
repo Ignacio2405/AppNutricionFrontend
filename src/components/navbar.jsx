@@ -40,8 +40,18 @@ const SECCIONES_CONFIG = [
     icon: BsCalendar2Week,
     className: "",
     children: [
-      { id: "turnos-lista", label: "Lista de Turnos", path: "/turnos" },
-      { id: "turnos-nuevo", label: "Nuevo Turno", path: "/turnos/nuevo" },
+      {
+        id: "turnos-lista",
+        label: "Lista de Turnos",
+        path: "/turnos",
+        roles: TODOS_LOS_ROLES,
+      },
+      {
+        id: "turnos-nuevo",
+        label: "Nuevo Turno",
+        path: "/turnos/nuevo",
+        roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.USER, ROLES.PACIENTE],
+      },
     ],
   },
   {
@@ -59,15 +69,14 @@ const SECCIONES_CONFIG = [
     id: "excepciones-grupo",
     label: "Excepciones",
     path: "/excepcion",
-    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.MEDICO],
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA],
     icon: BsExclamationTriangle,
     className: "mt-1",
   },
-
   {
     id: "pacientes-grupo",
     label: "Pacientes",
-    roles: TODOS_LOS_ROLES,
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.MEDICO],
     icon: BsPeople,
     className: "mt-1",
     children: [
@@ -86,12 +95,22 @@ const SECCIONES_CONFIG = [
   {
     id: "medicos-grupo",
     label: "Médicos",
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.ADMIN, ROLES.PACIENTE, ROLES.RECEPCIONISTA],
     icon: BsHeartPulse,
     className: "mt-1",
     children: [
-      { id: "medicos-lista", label: "Lista de Médicos", path: "/medicos" },
-      { id: "medicos-nuevo", label: "Nuevo Médico", path: "/medicos/nuevo" },
+      {
+        id: "medicos-lista",
+        label: "Lista de Médicos",
+        roles: [ROLES.ADMIN, ROLES.PACIENTE, ROLES.RECEPCIONISTA],
+        path: "/medicos",
+      },
+      {
+        id: "medicos-nuevo",
+        label: "Nuevo Médico",
+        roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA],
+        path: "/medicos/nuevo",
+      },
     ],
   },
   {
@@ -116,14 +135,20 @@ const SECCIONES_CONFIG = [
   {
     id: "consultas-grupo",
     label: "Consultas",
-    roles: [ROLES.MEDICO],
+    roles: [ROLES.MEDICO, ROLES.PACIENTE],
     icon: BsCalendarCheck,
     className: "mt-1",
     children: [
-      { id: "consultas-lista", label: "Lista de Consultas", path: "/consulta" },
+      {
+        id: "consultas-lista",
+        label: "Lista de Consultas",
+        roles: [ROLES.MEDICO, ROLES.PACIENTE],
+        path: "/consulta",
+      },
       {
         id: "consultas-nueva",
         label: "Nueva Consulta",
+        roles: [ROLES.MEDICO],
         path: "/consulta/nueva",
       },
     ],
@@ -131,18 +156,20 @@ const SECCIONES_CONFIG = [
   {
     id: "historial-medico-grupo",
     label: "Historiales Médicos",
-    roles: [ROLES.MEDICO],
+    roles: [ROLES.MEDICO, ROLES.PACIENTE],
     icon: BsJournalMedical,
     className: "mt-1",
     children: [
       {
         id: "historial-lista",
         label: "Lista de Historiales",
+        roles: [ROLES.MEDICO, ROLES.PACIENTE],
         path: "/historial-medico",
       },
       {
         id: "historial-nuevo",
         label: "Nuevo Historial",
+        roles: [ROLES.MEDICO],
         path: "/historial-medico/nuevo",
       },
     ],
@@ -195,11 +222,13 @@ const SECCIONES_CONFIG = [
       {
         id: "planes-comidas-lista",
         label: "Lista de Planes",
+        roles: [ROLES.MEDICO, ROLES.PACIENTE],
         path: "/planes-comidas",
       },
       {
         id: "planes-comidas-nuevo",
         label: "Nuevo Plan",
+        roles: [ROLES.MEDICO],
         path: "/planes-comidas/nuevo",
       },
     ],
@@ -214,11 +243,13 @@ const SECCIONES_CONFIG = [
       {
         id: "metas-objetivos-lista",
         label: "Lista de Metas",
+        roles: [ROLES.MEDICO, ROLES.PACIENTE],
         path: "/metas-objetivos",
       },
       {
         id: "metas-objetivos-nuevo",
         label: "Nuevas Metas",
+        roles: [ROLES.MEDICO],
         path: "/metas-objetivos/nuevo",
       },
     ],
@@ -227,7 +258,7 @@ const SECCIONES_CONFIG = [
     id: "pagos-grupo",
     label: "Pagos",
     path: "/pagos",
-    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA, ROLES.MEDICO],
+    roles: [ROLES.ADMIN, ROLES.RECEPCIONISTA],
     icon: BsCashCoin,
     className: "mt-1",
   },
@@ -273,11 +304,19 @@ export const NavBar = () => {
           return true;
         }
         return sec.roles.map((r) => r.toUpperCase()).includes(rolUsuario);
+      }).map((sec) => {
+        if (!Array.isArray(sec.children)) return sec;
+        const hijosFiltrados = sec.children.filter((child) => {
+          if (!Array.isArray(child.roles) || child.roles.length === 0) {
+            return true;
+          }
+          return child.roles.map((r) => r.toUpperCase()).includes(rolUsuario);
+        });
+        return { ...sec, children: hijosFiltrados };
       }),
     [rolUsuario],
   );
 
-  // Solo un ítem abierto a la vez; null si todos están cerrados
   const [openSectionId, setOpenSectionId] = useState(null);
 
   const toggleSection = (id) => {
@@ -407,25 +446,27 @@ export const NavBar = () => {
                     </button>
                   )}
 
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-link text-dark text-decoration-none px-2"
-                    onClick={() => toggleSection(sec.id)}
-                    aria-expanded={isOpen}
-                    aria-label={`${isOpen ? "Ocultar" : "Mostrar"} opciones de ${sec.label}`}
-                    title={`${isOpen ? "Ocultar" : "Mostrar"} opciones de ${sec.label}`}
-                  >
-                    <span
-                      className="d-inline-block"
-                      style={{
-                        transition: "transform 0.2s ease",
-                        transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
-                        fontSize: "0.8rem",
-                      }}
+                  {tieneHijos && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-link text-dark text-decoration-none px-2"
+                      onClick={() => toggleSection(sec.id)}
+                      aria-expanded={isOpen}
+                      aria-label={`${isOpen ? "Ocultar" : "Mostrar"} opciones de ${sec.label}`}
+                      title={`${isOpen ? "Ocultar" : "Mostrar"} opciones de ${sec.label}`}
                     >
-                      ▸
-                    </span>
-                  </button>
+                      <span
+                        className="d-inline-block"
+                        style={{
+                          transition: "transform 0.2s ease",
+                          transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+                          fontSize: "0.8rem",
+                        }}
+                      >
+                        ▸
+                      </span>
+                    </button>
+                  )}
                 </div>
 
                 {isOpen && tieneHijos && (

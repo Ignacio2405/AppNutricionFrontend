@@ -113,7 +113,7 @@ export const DetallePaciente = () => {
             <CustomButton
               type="button"
               variant="secondary"
-              onClick={() => navigate("/pacientes")}
+              onClick={() => navigate("/customers")}
             >
               ← Volver
             </CustomButton>

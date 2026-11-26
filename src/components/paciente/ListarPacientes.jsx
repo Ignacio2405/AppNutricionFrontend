@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { BsEye, BsPencilSquare, BsTrash } from "react-icons/bs";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { LIMITE_POR_PAGINA, Paginacion } from "../ui/Paginacion.jsx";
 import clientesAxios from "../../config/axios.js";
 
 export const ListarPacientes = () => {
   const [pacientes, setPacientes] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [paginacion, setPaginacion] = useState({});
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -17,9 +20,12 @@ export const ListarPacientes = () => {
 
     const fetchPacientes = async () => {
       try {
-        const { data } = await clientesAxios.get("/pacientes");
+        const { data } = await clientesAxios.get("/pacientes", {
+          params: { page: pagina, limit: LIMITE_POR_PAGINA },
+        });
         if (!activo) return;
         setPacientes(Array.isArray(data?.data) ? data.data : []);
+        setPaginacion(data?.pagination || {});
       } catch (err) {
         if (!activo) return;
         console.error("Error al cargar pacientes:", err);
@@ -35,7 +41,7 @@ export const ListarPacientes = () => {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [pagina]);
 
   const handleEliminar = async (id) => {
     const confirmar = window.confirm(
@@ -101,7 +107,10 @@ export const ListarPacientes = () => {
             <CustomInput
               name="busquedaPaciente"
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => {
+                setBusqueda(e.target.value);
+                setPagina(1);
+              }}
               placeholder="Buscar por nombre, apellido, DNI o correo..."
             />
           </div>
@@ -180,6 +189,15 @@ export const ListarPacientes = () => {
             </table>
           </div>
         )}
+        <Paginacion
+          pagina={pagina}
+          paginacion={paginacion}
+          onCambiarPagina={(nuevaPagina) => {
+            setLoading(true);
+            setPagina(nuevaPagina);
+          }}
+          cargando={loading}
+        />
       </div>
     </div>
   );

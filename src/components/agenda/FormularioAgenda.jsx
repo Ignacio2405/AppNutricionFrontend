@@ -3,6 +3,7 @@ import clientesAxios from "../../config/axios.js";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const DIAS_SEMANA_OPCIONES = [
   { value: "lunes", label: "lunes" },
@@ -116,7 +117,9 @@ export const FormularioAgenda = ({
 
     const cargarMedicos = async () => {
       try {
-        const { data } = await clientesAxios.get("/medicos");
+        const { data } = await clientesAxios.get("/medicos", {
+          params: PARAMETROS_LISTADO_COMPLETO,
+        });
         if (!activo) return;
         const lista = Array.isArray(data?.data)
           ? data.data

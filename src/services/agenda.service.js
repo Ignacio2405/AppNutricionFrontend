@@ -1,8 +1,9 @@
 import clientesAxios from "../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../utils/paginacion.js";
 
 const BASE_URL = "/agenda";
 
-export const obtenerAgenda = async (params = {}) => {
+export const obtenerAgenda = async (params = PARAMETROS_LISTADO_COMPLETO) => {
   const { data } = await clientesAxios.get(BASE_URL, { params });
   return data;
 };

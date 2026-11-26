@@ -4,6 +4,7 @@ import { obtenerTurnosDisponibles } from "../../services/turno.service.js";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const leerValor = (valOrEvent) => {
   if (
@@ -23,6 +24,33 @@ const extraerId = (campo) => {
     return String(campo._id || campo.id || campo.value || "");
   }
   return String(campo);
+};
+
+const obtenerUsuarioToken = () => {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const partes = token.split(".");
+    if (partes.length !== 3) return null;
+
+    const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+        .join(""),
+    );
+
+    const payload = JSON.parse(jsonPayload);
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
 };
 
 // Parsea YYYY-MM-DD en fecha local sin corrimiento por UTC
@@ -82,6 +110,10 @@ export const FormularioTurno = ({
   submitLabel = "Guardar Turno",
   esEdicion = false,
 }) => {
+  const usuario = useMemo(() => obtenerUsuarioToken(), []);
+  const rolUsuario = String(usuario?.rol || "").toUpperCase();
+  const esPaciente = rolUsuario === "PACIENTE";
+
   const [medicos, setMedicos] = useState([]);
   const [pacientes, setPacientes] = useState([]);
 
@@ -102,15 +134,19 @@ export const FormularioTurno = ({
   const [cargandoSlots, setCargandoSlots] = useState(false);
   const [errorLocal, setErrorLocal] = useState("");
 
-  // Cargar médicos y pacientes
+  // Cargar médicos y pacientes (y autocompletar si el usuario logueado es PACIENTE)
   useEffect(() => {
     let activo = true;
 
     const cargarCatalogos = async () => {
       try {
         const [resMedicos, resPacientes] = await Promise.allSettled([
-          clientesAxios.get("/medicos"),
-          clientesAxios.get("/pacientes"),
+          clientesAxios.get("/medicos", {
+            params: PARAMETROS_LISTADO_COMPLETO,
+          }),
+          clientesAxios.get("/pacientes", {
+            params: PARAMETROS_LISTADO_COMPLETO,
+          }),
         ]);
 
         if (!activo) return;
@@ -137,6 +173,31 @@ export const FormularioTurno = ({
                 ? rawP
                 : [];
           setPacientes(listaP);
+
+          if (esPaciente && !pacienteInicial) {
+            const usuarioId = String(usuario?.id || usuario?._id || "");
+            const emailToken = String(usuario?.email || "")
+              .toLowerCase()
+              .trim();
+
+            const miPaciente =
+              listaP.find((p) => {
+                const pacUsuarioId = extraerId(p.usuario);
+                const pacEmail = String(p.email || "")
+                  .toLowerCase()
+                  .trim();
+                return (
+                  (usuarioId &&
+                    (pacUsuarioId === usuarioId ||
+                      String(p._id) === usuarioId)) ||
+                  (emailToken && pacEmail === emailToken)
+                );
+              }) || (listaP.length === 1 ? listaP[0] : null);
+
+            if (miPaciente?._id) {
+              setPaciente(String(miPaciente._id));
+            }
+          }
         }
       } catch (err) {
         console.error("Error al cargar médicos o pacientes:", err);
@@ -147,7 +208,7 @@ export const FormularioTurno = ({
     return () => {
       activo = false;
     };
-  }, []);
+  }, [esPaciente, pacienteInicial, usuario]);
 
   // Consultar horarios disponibles al cambiar médico o fecha
   useEffect(() => {
@@ -187,16 +248,19 @@ export const FormularioTurno = ({
     };
   }, [medico, fecha]);
 
-  const opcionesPacientes = useMemo(
-    () =>
-      pacientes.map((p) => ({
-        value: String(p._id),
-        label: `${p.apellido || ""}, ${p.nombre || ""}${
-          p.dni ? ` (DNI: ${p.dni})` : ""
-        }`,
-      })),
-    [pacientes],
-  );
+  const opcionesPacientes = useMemo(() => {
+    const listaBase =
+      esPaciente && paciente
+        ? pacientes.filter((p) => String(p._id) === String(paciente))
+        : pacientes;
+
+    return listaBase.map((p) => ({
+      value: String(p._id),
+      label: `${p.apellido || ""}, ${p.nombre || ""}${
+        p.dni ? ` (DNI: ${p.dni})` : ""
+      }`,
+    }));
+  }, [pacientes, esPaciente, paciente]);
 
   const opcionesMedicos = useMemo(
     () =>
@@ -257,7 +321,7 @@ export const FormularioTurno = ({
       observaciones: String(observaciones || "").trim(),
     };
 
-    onSubmit(payload, { urgencia: !esEdicion && urgencia });
+    onSubmit(payload, { urgencia: !esEdicion && !esPaciente && urgencia });
   };
 
   return (
@@ -282,7 +346,12 @@ export const FormularioTurno = ({
               value={paciente}
               onChange={(val) => setPaciente(extraerId(leerValor(val)))}
               options={opcionesPacientes}
-              placeholder="Escriba para buscar o seleccione..."
+              placeholder={
+                esPaciente
+                  ? "Cargando tus datos..."
+                  : "Escriba para buscar o seleccione..."
+              }
+              disabled={esPaciente}
               required
             />
           </div>
@@ -374,7 +443,7 @@ export const FormularioTurno = ({
           </div>
         )}
 
-        {!esEdicion && (
+        {!esEdicion && !esPaciente && (
           <div className="form-check mb-4">
             <input
               id="urgencia"

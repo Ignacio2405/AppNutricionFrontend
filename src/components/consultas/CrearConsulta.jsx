@@ -4,6 +4,7 @@ import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect";
 import { CustomButton } from "../ui/CustomButton";
 import clientesAxios from "../../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const obtenerFechaLocalHoy = () => {
   const ahora = new Date();
@@ -55,7 +56,9 @@ export const CrearConsulta = () => {
   useEffect(() => {
     const fetchPacientes = async () => {
       try {
-        const { data } = await clientesAxios.get("/pacientes");
+        const { data } = await clientesAxios.get("/pacientes", {
+          params: PARAMETROS_LISTADO_COMPLETO,
+        });
         const lista = Array.isArray(data)
           ? data
           : data.pacientes || data.data || data.docs || [];

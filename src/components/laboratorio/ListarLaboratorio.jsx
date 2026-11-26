@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { BsEye, BsPencilSquare, BsTrash } from "react-icons/bs";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { LIMITE_POR_PAGINA, Paginacion } from "../ui/Paginacion.jsx";
 import clientesAxios from "../../config/axios.js";
 
 export const ListarLaboratorio = () => {
   const [registros, setRegistros] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [paginacion, setPaginacion] = useState({});
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -17,12 +20,15 @@ export const ListarLaboratorio = () => {
 
     const cargarRegistros = async () => {
       try {
-        const { data } = await clientesAxios.get("/resultados-laboratorio");
+        const { data } = await clientesAxios.get("/resultados-laboratorio", {
+          params: { page: pagina, limit: LIMITE_POR_PAGINA },
+        });
         if (!activo) return;
         const lista = Array.isArray(data)
           ? data
           : data.data || data.resultados || [];
         setRegistros(lista);
+        setPaginacion(data?.pagination || {});
       } catch (err) {
         if (!activo) return;
         console.error("Error al cargar resultados de laboratorio:", err);
@@ -36,7 +42,7 @@ export const ListarLaboratorio = () => {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [pagina]);
 
   const handleEliminar = async (id) => {
     const confirmar = window.confirm(
@@ -112,7 +118,10 @@ export const ListarLaboratorio = () => {
             <CustomInput
               name="busquedaLaboratorio"
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => {
+                setBusqueda(e.target.value);
+                setPagina(1);
+              }}
               placeholder="Buscar por paciente, DNI, observaciones o notas..."
             />
           </div>
@@ -198,6 +207,15 @@ export const ListarLaboratorio = () => {
             </table>
           </div>
         )}
+        <Paginacion
+          pagina={pagina}
+          paginacion={paginacion}
+          onCambiarPagina={(nuevaPagina) => {
+            setLoading(true);
+            setPagina(nuevaPagina);
+          }}
+          cargando={loading}
+        />
       </div>
     </div>
   );

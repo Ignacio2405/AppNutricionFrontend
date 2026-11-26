@@ -4,6 +4,7 @@ import { BsPrinter } from "react-icons/bs";
 import clientesAxios from "../../config/axios.js";
 import { obtenerInformePaciente } from "../../services/reporte.service.js";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const formatearFecha = (fecha) => {
   if (!fecha) return "—";
@@ -56,10 +57,14 @@ export const InformePaciente = () => {
       try {
         let res;
         try {
-          res = await clientesAxios.get("/pacientes");
+          res = await clientesAxios.get("/pacientes", {
+            params: PARAMETROS_LISTADO_COMPLETO,
+          });
         } catch (err) {
           if (err.response?.status === 404) {
-            res = await clientesAxios.get("/paciente");
+            res = await clientesAxios.get("/paciente", {
+              params: PARAMETROS_LISTADO_COMPLETO,
+            });
           } else {
             throw err;
           }

@@ -49,6 +49,44 @@ import { InformePaciente } from "./components/reportes/InformePaciente.jsx";
 import { Pagos } from "./components/pagos/Pagos.jsx";
 import { NotFound } from "./components/NotFound";
 
+const obtenerRolDesdeToken = () => {
+  const token = localStorage.getItem("token");
+  if (!token) return "";
+
+  try {
+    const partes = token.split(".");
+    if (partes.length !== 3) return "";
+
+    const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+        .join(""),
+    );
+
+    const payload = JSON.parse(jsonPayload);
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return "";
+    }
+
+    return String(payload?.rol || "")
+      .trim()
+      .toUpperCase();
+  } catch {
+    return "";
+  }
+};
+
+const obtenerRutaInicioPorRol = () => {
+  const rol = obtenerRolDesdeToken();
+  return rol === "PACIENTE" ? "/turnos" : "/customers";
+};
+
+const InicioPorRol = () => {
+  return <Navigate to={obtenerRutaInicioPorRol()} replace />;
+};
+
 // Ruta privada: si no hay token, manda directo al login
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem("token");
@@ -58,11 +96,11 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Ruta pública (Login): si ya hay token, manda al inicio del sistema
+// Ruta pública (Login): si ya hay token, manda al inicio correspondiente según rol
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem("token");
   if (token) {
-    return <Navigate to="/customers" replace />;
+    return <Navigate to={obtenerRutaInicioPorRol()} replace />;
   }
   return children;
 };
@@ -101,8 +139,8 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {/* Página de inicio al entrar logueado */}
-            <Route index element={<Navigate to="/customers" replace />} />
+            {/* Página de inicio al entrar logueado según rol */}
+            <Route index element={<InicioPorRol />} />
 
             {/* Pacientes */}
             <Route path="customers" element={<ListarPacientes />} />

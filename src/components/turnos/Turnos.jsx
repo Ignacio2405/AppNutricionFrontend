@@ -7,7 +7,10 @@ import {
   marcarTurnoAtendido,
   obtenerTurnos,
 } from "../../services/turno.service.js";
+import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { LIMITE_POR_PAGINA, Paginacion } from "../ui/Paginacion.jsx";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const obtenerFechaUtcStr = (fecha) => {
   if (!fecha) return "";
@@ -121,12 +124,15 @@ export const Turnos = () => {
   const usuario = useMemo(() => obtenerUsuarioToken(), []);
   const rolUsuario = String(usuario?.rol || "").toUpperCase();
   const esPaciente = rolUsuario === "PACIENTE";
+  const puedeCrearTurno = rolUsuario !== "MEDICO";
   const puedeAtender =
     rolUsuario === "ADMIN" ||
     rolUsuario === "RECEPCIONISTA" ||
     rolUsuario === "MEDICO";
 
   const [turnos, setTurnos] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [paginacion, setPaginacion] = useState({});
   const [pacientes, setPacientes] = useState([]);
   const [medicos, setMedicos] = useState([]);
   const [fechaFiltro, setFechaFiltro] = useState("");
@@ -173,18 +179,26 @@ export const Turnos = () => {
       });
   }, [turnos]);
 
-  const recargarTurnos = useCallback(async (fecha = "") => {
-    setError("");
-    try {
-      const params = fecha ? { fecha } : {};
-      const res = await obtenerTurnos(params);
-      setTurnos(extraerLista(res));
-    } catch (err) {
-      setError(
-        err.response?.data?.mensaje || "No se pudieron cargar los turnos.",
-      );
-    }
-  }, []);
+  const recargarTurnos = useCallback(
+    async (fecha = "", paginaActual = pagina) => {
+      setError("");
+      try {
+        const params = {
+          page: paginaActual,
+          limit: LIMITE_POR_PAGINA,
+          ...(fecha ? { fecha } : {}),
+        };
+        const res = await obtenerTurnos(params);
+        setTurnos(extraerLista(res));
+        setPaginacion(res?.pagination || {});
+      } catch (err) {
+        setError(
+          err.response?.data?.mensaje || "No se pudieron cargar los turnos.",
+        );
+      }
+    },
+    [pagina],
+  );
 
   useEffect(() => {
     let activo = true;
@@ -192,8 +206,12 @@ export const Turnos = () => {
     const cargarCatalogos = async () => {
       try {
         const [resPacientes, resMedicos] = await Promise.allSettled([
-          clientesAxios.get("/pacientes"),
-          clientesAxios.get("/medicos"),
+          clientesAxios.get("/pacientes", {
+            params: PARAMETROS_LISTADO_COMPLETO,
+          }),
+          clientesAxios.get("/medicos", {
+            params: PARAMETROS_LISTADO_COMPLETO,
+          }),
         ]);
 
         if (!activo) return;
@@ -221,10 +239,15 @@ export const Turnos = () => {
 
     const fetchTurnos = async () => {
       try {
-        const params = fechaFiltro ? { fecha: fechaFiltro } : {};
+        const params = {
+          page: pagina,
+          limit: LIMITE_POR_PAGINA,
+          ...(fechaFiltro ? { fecha: fechaFiltro } : {}),
+        };
         const res = await obtenerTurnos(params);
         if (!activo) return;
         setTurnos(extraerLista(res));
+        setPaginacion(res?.pagination || {});
         setError("");
       } catch (err) {
         if (!activo) return;
@@ -240,16 +263,18 @@ export const Turnos = () => {
     return () => {
       activo = false;
     };
-  }, [fechaFiltro]);
+  }, [fechaFiltro, pagina]);
 
   const handleFiltroFechaChange = (e) => {
     setLoading(true);
     setFechaFiltro(e.target.value);
+    setPagina(1);
   };
 
   const handleLimpiarFiltro = () => {
     setLoading(true);
     setFechaFiltro("");
+    setPagina(1);
   };
 
   const handleMarcarAtendido = async (turno) => {
@@ -262,7 +287,7 @@ export const Turnos = () => {
     setError("");
     try {
       await marcarTurnoAtendido(turno._id);
-      await recargarTurnos(fechaFiltro);
+      await recargarTurnos(fechaFiltro, pagina);
     } catch (err) {
       setError(
         err.response?.data?.mensaje || "No se pudo marcar como atendido.",
@@ -273,11 +298,14 @@ export const Turnos = () => {
   };
 
   const handleCancelar = async (id) => {
+    const confirmar = window.confirm("¿Deseás cancelar este turno?");
+    if (!confirmar) return;
+
     setAccionId(id);
     setError("");
     try {
       await cancelarTurno(id);
-      await recargarTurnos(fechaFiltro);
+      await recargarTurnos(fechaFiltro, pagina);
     } catch (err) {
       setError(err.response?.data?.mensaje || "No se pudo cancelar el turno.");
     } finally {
@@ -292,26 +320,27 @@ export const Turnos = () => {
           <h3 className="fw-bold text-success mb-0">
             {esPaciente ? "Mis Turnos" : "Listado de Turnos"}
           </h3>
-          <CustomButton type="button" onClick={() => navigate("/turnos/nuevo")}>
-            + Nuevo Turno
-          </CustomButton>
+          {puedeCrearTurno && (
+            <CustomButton
+              type="button"
+              onClick={() => navigate("/turnos/nuevo")}
+            >
+              + Nuevo Turno
+            </CustomButton>
+          )}
         </div>
 
         {/* Filtro por fecha */}
         <div className="row g-2 align-items-end mb-3">
           <div className="col-sm-4 col-md-3">
-            <label
-              htmlFor="filtroFechaTurno"
-              className="form-label small fw-semibold mb-1"
-            >
-              Filtrar por fecha
-            </label>
-            <input
+            <CustomInput
               id="filtroFechaTurno"
+              name="filtroFechaTurno"
+              label="Filtrar por fecha"
               type="date"
-              className="form-control"
               value={fechaFiltro}
               onChange={handleFiltroFechaChange}
+              className="mb-0"
             />
           </div>
           {fechaFiltro && (
@@ -439,6 +468,15 @@ export const Turnos = () => {
             </tbody>
           </table>
         </div>
+        <Paginacion
+          pagina={pagina}
+          paginacion={paginacion}
+          onCambiarPagina={(nuevaPagina) => {
+            setLoading(true);
+            setPagina(nuevaPagina);
+          }}
+          cargando={loading}
+        />
       </div>
     </div>
   );

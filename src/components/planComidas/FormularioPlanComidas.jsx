@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import clientesAxios from "../../config/axios.js";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect.jsx";
+import { CustomSelectSimple } from "../ui/CustomSelectSimple.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const ADVERTENCIAS_DEFAULT = [
   "Descremado NO siempre es sinónimo de Light. Se sugiere elegir alimentos rotulados como Descremado y/o aquellos productos Light con la leyenda bajo en grasas o grasas 0%.",
@@ -191,7 +193,9 @@ export const FormularioPlanComidas = ({
 
     const cargarPacientes = async () => {
       try {
-        const { data } = await clientesAxios.get("/pacientes");
+        const { data } = await clientesAxios.get("/pacientes", {
+          params: PARAMETROS_LISTADO_COMPLETO,
+        });
         if (!activo) return;
 
         const lista = Array.isArray(data?.data)
@@ -223,7 +227,7 @@ export const FormularioPlanComidas = ({
     const cargarConsultasDelPaciente = async () => {
       try {
         const { data } = await clientesAxios.get("/consulta", {
-          params: { pacienteId: patientId },
+          params: { ...PARAMETROS_LISTADO_COMPLETO, pacienteId: patientId },
         });
         if (!activo) return;
 
@@ -439,7 +443,7 @@ export const FormularioPlanComidas = ({
 
   return (
     <div className="card shadow-sm border-0 p-4 rounded-4">
-      <h4 className="fw-bold text-success mb-4">Registrar Plan de Comidas</h4>
+      <h4 className="fw-bold text-success mb-4">{submitLabel}</h4>
 
       {errorLocal && (
         <div className="alert alert-danger py-2 small mb-3" role="alert">
@@ -560,7 +564,10 @@ export const FormularioPlanComidas = ({
             checked={planActivo}
             onChange={(e) => setPlanActivo(e.target.checked)}
           />
-          <label htmlFor="planActivo" className="form-check-label">
+          <label
+            htmlFor="planActivo"
+            className="form-check-label fw-semibold text-dark"
+          >
             Marcar como plan activo vigente del paciente
           </label>
         </div>
@@ -726,27 +733,17 @@ export const FormularioPlanComidas = ({
           >
             <div className="row g-2 align-items-end">
               <div className="col-md-3">
-                <label
-                  htmlFor={`momento-eq-${index}`}
-                  className="form-label fw-semibold text-dark"
-                >
-                  Momento
-                </label>
-                <select
+                <CustomSelectSimple
                   id={`momento-eq-${index}`}
                   name={`momento-eq-${index}`}
-                  className="form-select"
+                  label="Momento"
                   value={eq.momento}
+                  options={OPCIONES_MOMENTO}
                   onChange={(e) =>
                     handleEquivalenciaChange(index, "momento", e.target.value)
                   }
-                >
-                  {OPCIONES_MOMENTO.map((op) => (
-                    <option key={op.value} value={op.value}>
-                      {op.label}
-                    </option>
-                  ))}
-                </select>
+                  className="mb-0"
+                />
               </div>
 
               <div className="col-md-3">
@@ -912,14 +909,15 @@ export const FormularioPlanComidas = ({
                 key={`rec-gen-${index}`}
               >
                 <span className="flex-grow-1 small">{rec}</span>
-                <button
+                <CustomButton
                   type="button"
-                  className="btn btn-sm btn-outline-danger"
+                  variant="outline-danger"
+                  className="py-1 px-2"
                   onClick={() => quitarRecomendacion(index)}
                   title="Quitar recomendación"
                 >
                   ✕
-                </button>
+                </CustomButton>
               </div>
             ))}
           </div>
@@ -936,7 +934,7 @@ export const FormularioPlanComidas = ({
             id="nuevaRecomendacion"
             name="nuevaRecomendacion"
             type="text"
-            className="form-control"
+            className="form-control login-input"
             placeholder="Ej: Realizar diariamente las 4 comidas principales y 2 colaciones..."
             value={nuevaRecomendacion}
             onChange={(e) => setNuevaRecomendacion(e.target.value)}
@@ -947,13 +945,14 @@ export const FormularioPlanComidas = ({
               }
             }}
           />
-          <button
+          <CustomButton
             type="button"
-            className="btn btn-outline-success"
+            variant="outline-success"
+            className="py-1 px-3"
             onClick={agregarRecomendacion}
           >
             + Agregar
-          </button>
+          </CustomButton>
         </div>
 
         <hr className="my-4" />
@@ -970,14 +969,15 @@ export const FormularioPlanComidas = ({
               key={`adv-${index}`}
             >
               <span className="flex-grow-1 small">{adv}</span>
-              <button
+              <CustomButton
                 type="button"
-                className="btn btn-sm btn-outline-danger"
+                variant="outline-danger"
+                className="py-1 px-2"
                 onClick={() => quitarAdvertencia(index)}
                 title="Quitar advertencia"
               >
                 ✕
-              </button>
+              </CustomButton>
             </div>
           ))}
         </div>
@@ -993,7 +993,7 @@ export const FormularioPlanComidas = ({
             id="nuevaAdvertencia"
             name="nuevaAdvertencia"
             type="text"
-            className="form-control"
+            className="form-control login-input"
             placeholder="Escriba una advertencia adicional..."
             value={nuevaAdvertencia}
             onChange={(e) => setNuevaAdvertencia(e.target.value)}
@@ -1004,13 +1004,14 @@ export const FormularioPlanComidas = ({
               }
             }}
           />
-          <button
+          <CustomButton
             type="button"
-            className="btn btn-outline-success"
+            variant="outline-success"
+            className="py-1 px-3"
             onClick={agregarAdvertencia}
           >
             + Agregar
-          </button>
+          </CustomButton>
         </div>
 
         <div className="d-flex justify-content-end gap-2">

@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { BsEye, BsPencilSquare, BsTrash } from "react-icons/bs";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomButton } from "../ui/CustomButton";
+import { LIMITE_POR_PAGINA, Paginacion } from "../ui/Paginacion.jsx";
 import clientesAxios from "../../config/axios.js";
 
 export const ListarHabitos = () => {
   const [habitos, setHabitos] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [paginacion, setPaginacion] = useState({});
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -17,13 +20,16 @@ export const ListarHabitos = () => {
 
     const cargarHabitos = async () => {
       try {
-        const { data } = await clientesAxios.get("/habitos");
+        const { data } = await clientesAxios.get("/habitos", {
+          params: { page: pagina, limit: LIMITE_POR_PAGINA },
+        });
         if (!activo) return;
 
         const lista = Array.isArray(data)
           ? data
           : data.data || data.habitos || [];
         setHabitos(lista);
+        setPaginacion(data?.pagination || {});
       } catch (err) {
         if (!activo) return;
         console.error("Error al cargar hábitos alimentarios:", err);
@@ -38,7 +44,7 @@ export const ListarHabitos = () => {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [pagina]);
 
   const handleEliminar = async (id) => {
     const confirmar = window.confirm(
@@ -118,7 +124,10 @@ export const ListarHabitos = () => {
             <CustomInput
               name="busquedaHabitos"
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => {
+                setBusqueda(e.target.value);
+                setPagina(1);
+              }}
               placeholder="Buscar por paciente, actividad física o estrés..."
             />
           </div>
@@ -200,6 +209,15 @@ export const ListarHabitos = () => {
             </table>
           </div>
         )}
+        <Paginacion
+          pagina={pagina}
+          paginacion={paginacion}
+          onCambiarPagina={(nuevaPagina) => {
+            setLoading(true);
+            setPagina(nuevaPagina);
+          }}
+          cargando={loading}
+        />
       </div>
     </div>
   );

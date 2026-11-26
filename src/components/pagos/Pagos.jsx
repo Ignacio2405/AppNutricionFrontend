@@ -8,6 +8,8 @@ import {
 } from "../../services/pago.service.js";
 import { CustomButton } from "../ui/CustomButton.jsx";
 import { FormularioPago } from "./FormularioPago.jsx";
+import { LIMITE_POR_PAGINA, Paginacion } from "../ui/Paginacion.jsx";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const METODO_LABEL = {
   EFECTIVO: "Efectivo",
@@ -62,11 +64,12 @@ const extraerListaPacientes = (data) => {
 
 export const Pagos = () => {
   const [pagos, setPagos] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [paginacion, setPaginacion] = useState({});
   const [pacientes, setPacientes] = useState([]);
   const [pacienteFiltro, setPacienteFiltro] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [pagoAEliminar, setPagoAEliminar] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [accionId, setAccionId] = useState("");
@@ -77,7 +80,9 @@ export const Pagos = () => {
     let activo = true;
     const cargarPacientes = async () => {
       try {
-        const { data } = await clientesAxios.get("/pacientes");
+        const { data } = await clientesAxios.get("/pacientes", {
+          params: PARAMETROS_LISTADO_COMPLETO,
+        });
         if (!activo) return;
         setPacientes(extraerListaPacientes(data));
       } catch (err) {
@@ -90,32 +95,40 @@ export const Pagos = () => {
     };
   }, []);
 
-  const recargarPagos = useCallback(async (idPaciente = "", estado = "") => {
-    setError("");
-    try {
-      const params = {};
-      if (idPaciente) params.paciente = idPaciente;
-      if (estado) params.estado = estado;
-      const res = await obtenerPagos(params);
-      setPagos(Array.isArray(res?.data) ? res.data : []);
-    } catch (err) {
-      setError(
-        err.response?.data?.mensaje || "No se pudieron cargar los pagos.",
-      );
-    }
-  }, []);
+  const recargarPagos = useCallback(
+    async (idPaciente = "", estado = "", paginaActual = pagina) => {
+      setError("");
+      try {
+        const params = {
+          page: paginaActual,
+          limit: LIMITE_POR_PAGINA,
+        };
+        if (idPaciente) params.paciente = idPaciente;
+        if (estado) params.estado = estado;
+        const res = await obtenerPagos(params);
+        setPagos(Array.isArray(res?.data) ? res.data : []);
+        setPaginacion(res?.pagination || {});
+      } catch (err) {
+        setError(
+          err.response?.data?.mensaje || "No se pudieron cargar los pagos.",
+        );
+      }
+    },
+    [pagina],
+  );
 
   useEffect(() => {
     let activo = true;
 
     const fetchPagos = async () => {
       try {
-        const params = {};
+        const params = { page: pagina, limit: LIMITE_POR_PAGINA };
         if (pacienteFiltro) params.paciente = pacienteFiltro;
         if (estadoFiltro) params.estado = estadoFiltro;
         const res = await obtenerPagos(params);
         if (!activo) return;
         setPagos(Array.isArray(res?.data) ? res.data : []);
+        setPaginacion(res?.pagination || {});
         setError("");
       } catch (err) {
         if (!activo) return;
@@ -131,7 +144,7 @@ export const Pagos = () => {
     return () => {
       activo = false;
     };
-  }, [pacienteFiltro, estadoFiltro]);
+  }, [pacienteFiltro, estadoFiltro, pagina]);
 
   const handleCrearPago = async (payload) => {
     setSubmitting(true);
@@ -141,7 +154,7 @@ export const Pagos = () => {
       const res = await registrarPago(payload);
       setMensajeExito(res?.mensaje || "Pago registrado correctamente.");
       setMostrarFormulario(false);
-      await recargarPagos(pacienteFiltro, estadoFiltro);
+      await recargarPagos(pacienteFiltro, estadoFiltro, pagina);
     } catch (err) {
       setError(err.response?.data?.mensaje || "No se pudo registrar el pago.");
     } finally {
@@ -149,17 +162,21 @@ export const Pagos = () => {
     }
   };
 
-  const handleConfirmarEliminar = async () => {
-    if (!pagoAEliminar?._id) return;
-    const id = pagoAEliminar._id;
+  const handleEliminarPago = async (pago) => {
+    if (!pago?._id) return;
+    const confirmar = window.confirm(
+      `¿De verdad querés eliminar este pago de ${formatearMoneda(pago.monto)}?`,
+    );
+    if (!confirmar) return;
+
+    const id = pago._id;
     setAccionId(id);
     setError("");
     setMensajeExito("");
     try {
       const res = await anularPago(id);
       setMensajeExito(res?.mensaje || "Pago eliminado correctamente.");
-      setPagoAEliminar(null);
-      await recargarPagos(pacienteFiltro, estadoFiltro);
+      await recargarPagos(pacienteFiltro, estadoFiltro, pagina);
     } catch (err) {
       setError(err.response?.data?.mensaje || "No se pudo eliminar el pago.");
     } finally {
@@ -189,7 +206,6 @@ export const Pagos = () => {
             onClick={() => {
               setError("");
               setMensajeExito("");
-              setPagoAEliminar(null);
               setMostrarFormulario((prev) => !prev);
             }}
           >
@@ -213,6 +229,7 @@ export const Pagos = () => {
               onChange={(e) => {
                 setLoading(true);
                 setPacienteFiltro(e.target.value);
+                setPagina(1);
               }}
             >
               <option value="">Todos los pacientes</option>
@@ -238,6 +255,7 @@ export const Pagos = () => {
               onChange={(e) => {
                 setLoading(true);
                 setEstadoFiltro(e.target.value);
+                setPagina(1);
               }}
             >
               <option value="">Todos los estados</option>
@@ -256,6 +274,7 @@ export const Pagos = () => {
                   setLoading(true);
                   setPacienteFiltro("");
                   setEstadoFiltro("");
+                  setPagina(1);
                 }}
               >
                 Limpiar filtros
@@ -274,41 +293,6 @@ export const Pagos = () => {
       {error && (
         <div className="alert alert-danger py-2 small" role="alert">
           {error}
-        </div>
-      )}
-
-      {pagoAEliminar && (
-        <div
-          className="alert alert-warning border-warning d-flex flex-wrap justify-content-between align-items-center gap-3 rounded-4 shadow-sm mb-4"
-          role="alert"
-        >
-          <div>
-            <strong className="d-block">¿Querés eliminar este pago?</strong>
-            <span className="small">
-              Paciente:{" "}
-              <strong>{formatearPaciente(pagoAEliminar.paciente)}</strong> —
-              Monto: <strong>{formatearMoneda(pagoAEliminar.monto)}</strong> (
-              {pagoAEliminar.concepto || "Consulta nutricional"}).
-            </span>
-          </div>
-          <div className="d-flex gap-2">
-            <CustomButton
-              type="button"
-              variant="secondary"
-              disabled={accionId === pagoAEliminar._id}
-              onClick={() => setPagoAEliminar(null)}
-            >
-              Cancelar
-            </CustomButton>
-            <CustomButton
-              type="button"
-              variant="danger"
-              loading={accionId === pagoAEliminar._id}
-              onClick={handleConfirmarEliminar}
-            >
-              Sí, eliminar
-            </CustomButton>
-          </div>
         </div>
       )}
 
@@ -393,11 +377,7 @@ export const Pagos = () => {
                             title="Eliminar pago"
                             aria-label="Eliminar pago"
                             disabled={ocupado}
-                            onClick={() => {
-                              setError("");
-                              setMensajeExito("");
-                              setPagoAEliminar(pago);
-                            }}
+                            onClick={() => handleEliminarPago(pago)}
                           >
                             <BsTrash size={16} />
                           </CustomButton>
@@ -410,6 +390,15 @@ export const Pagos = () => {
             </tbody>
           </table>
         </div>
+        <Paginacion
+          pagina={pagina}
+          paginacion={paginacion}
+          onCambiarPagina={(nuevaPagina) => {
+            setLoading(true);
+            setPagina(nuevaPagina);
+          }}
+          cargando={loading}
+        />
       </div>
     </div>
   );

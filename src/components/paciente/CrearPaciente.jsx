@@ -4,6 +4,7 @@ import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect";
 import { CustomButton } from "../ui/CustomButton";
 import clientesAxios from "../../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const extraerListaObras = (resData) => {
   if (Array.isArray(resData?.data)) return resData.data;
@@ -38,7 +39,9 @@ export const CrearPaciente = () => {
 
     const fetchObrasSociales = async () => {
       try {
-        const { data } = await clientesAxios.get("/obraSocial");
+        const { data } = await clientesAxios.get("/obraSocial", {
+          params: PARAMETROS_LISTADO_COMPLETO,
+        });
         if (!activo) return;
 
         const lista = extraerListaObras(data);

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import clientesAxios from "../../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomSelect } from "../ui/CustomSelect.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
@@ -66,7 +67,9 @@ export const FormularioPago = ({
     let activo = true;
     const cargarPacientes = async () => {
       try {
-        const { data } = await clientesAxios.get("/pacientes");
+        const { data } = await clientesAxios.get("/pacientes", {
+          params: PARAMETROS_LISTADO_COMPLETO,
+        });
         if (!activo) return;
         setPacientes(extraerListaPacientes(data));
       } catch (err) {

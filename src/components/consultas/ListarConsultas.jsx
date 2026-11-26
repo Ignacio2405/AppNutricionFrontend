@@ -3,10 +3,44 @@ import { useNavigate } from "react-router-dom";
 import { BsEye, BsPencilSquare, BsTrash } from "react-icons/bs";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { LIMITE_POR_PAGINA, Paginacion } from "../ui/Paginacion.jsx";
 import clientesAxios from "../../config/axios.js";
 
+const obtenerUsuarioToken = () => {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const partes = token.split(".");
+    if (partes.length !== 3) return null;
+
+    const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+        .join(""),
+    );
+
+    const payload = JSON.parse(jsonPayload);
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+};
+
 export const ListarConsultas = () => {
+  const usuario = useMemo(() => obtenerUsuarioToken(), []);
+  const rolUsuario = String(usuario?.rol || "").toUpperCase();
+  const esPaciente = rolUsuario === "PACIENTE";
+
   const [consultas, setConsultas] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [paginacion, setPaginacion] = useState({});
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -17,12 +51,15 @@ export const ListarConsultas = () => {
 
     const ejecutarCarga = async () => {
       try {
-        const { data } = await clientesAxios.get("/consulta");
+        const { data } = await clientesAxios.get("/consulta", {
+          params: { page: pagina, limit: LIMITE_POR_PAGINA },
+        });
         if (cancelado) return;
         const lista = Array.isArray(data)
           ? data
           : data.data || data.consultas || data.docs || [];
         setConsultas(lista);
+        setPaginacion(data?.pagination || {});
       } catch (err) {
         console.error("Error al cargar consultas:", err);
         if (!cancelado) {
@@ -42,7 +79,7 @@ export const ListarConsultas = () => {
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [pagina]);
 
   const handleEliminar = async (id) => {
     const confirmar = window.confirm(
@@ -91,12 +128,14 @@ export const ListarConsultas = () => {
       <div className="card shadow-sm border-0 p-4 rounded-4">
         <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
           <h3 className="fw-bold text-success mb-0">Consultas Médicas</h3>
-          <CustomButton
-            type="button"
-            onClick={() => navigate("/consulta/nueva")}
-          >
-            + Nueva Consulta
-          </CustomButton>
+          {!esPaciente && (
+            <CustomButton
+              type="button"
+              onClick={() => navigate("/consulta/nueva")}
+            >
+              + Nueva Consulta
+            </CustomButton>
+          )}
         </div>
 
         <div className="row mb-3">
@@ -104,7 +143,10 @@ export const ListarConsultas = () => {
             <CustomInput
               name="busquedaConsultas"
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => {
+                setBusqueda(e.target.value);
+                setPagina(1);
+              }}
               placeholder="Buscar por paciente, DNI, médico u observaciones..."
             />
           </div>
@@ -159,24 +201,28 @@ export const ListarConsultas = () => {
                           >
                             <BsEye size={16} />
                           </CustomButton>
-                          <CustomButton
-                            type="button"
-                            variant="outline-primary"
-                            title="Editar consulta"
-                            aria-label="Editar consulta"
-                            onClick={() => navigate(`/consulta/${id}/editar`)}
-                          >
-                            <BsPencilSquare size={16} />
-                          </CustomButton>
-                          <CustomButton
-                            type="button"
-                            variant="outline-danger"
-                            title="Eliminar consulta"
-                            aria-label="Eliminar consulta"
-                            onClick={() => handleEliminar(id)}
-                          >
-                            <BsTrash size={16} />
-                          </CustomButton>
+                          {!esPaciente && (
+                            <>
+                            <CustomButton
+                              type="button"
+                              variant="outline-primary"
+                              title="Editar consulta"
+                              aria-label="Editar consulta"
+                              onClick={() => navigate(`/consulta/${id}/editar`)}
+                            >
+                              <BsPencilSquare size={16} />
+                            </CustomButton>
+                            <CustomButton
+                              type="button"
+                              variant="outline-danger"
+                              title="Eliminar consulta"
+                              aria-label="Eliminar consulta"
+                              onClick={() => handleEliminar(id)}
+                            >
+                              <BsTrash size={16} />
+                            </CustomButton>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -186,6 +232,15 @@ export const ListarConsultas = () => {
             </table>
           </div>
         )}
+        <Paginacion
+          pagina={pagina}
+          paginacion={paginacion}
+          onCambiarPagina={(nuevaPagina) => {
+            setLoading(true);
+            setPagina(nuevaPagina);
+          }}
+          cargando={loading}
+        />
       </div>
     </div>
   );

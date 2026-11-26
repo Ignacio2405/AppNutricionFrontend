@@ -19,7 +19,10 @@ export const MedicamentosFormList = ({
       </div>
 
       {items.map((med, index) => (
-        <div className="row align-items-end mb-2" key={index}>
+        <div
+          className="row align-items-end mb-2"
+          key={med._id || `${idPrefix}-${index}`}
+        >
           <div className="col-md-4">
             <CustomInput
               label={index === 0 ? "Nombre" : undefined}

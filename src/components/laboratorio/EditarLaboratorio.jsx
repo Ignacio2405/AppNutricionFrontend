@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CustomInput } from "../ui/CustomInput.jsx";
+import { CustomSelect } from "../ui/CustomSelect.jsx";
+import { CustomTextarea } from "../ui/CustomTextarea.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
 import clientesAxios from "../../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const toInputDate = (fecha) => {
   if (!fecha) return "";
@@ -44,7 +47,9 @@ export const EditarLaboratorio = () => {
       try {
         const [resLab, resPacientes] = await Promise.all([
           clientesAxios.get(`/resultados-laboratorio/${id}`),
-          clientesAxios.get("/pacientes"),
+          clientesAxios.get("/pacientes", {
+            params: PARAMETROS_LISTADO_COMPLETO,
+          }),
         ]);
 
         if (!activo) return;
@@ -88,6 +93,17 @@ export const EditarLaboratorio = () => {
       activo = false;
     };
   }, [id]);
+
+  const opcionesPacientes = useMemo(
+    () =>
+      pacientes.map((pac) => ({
+        value: pac._id,
+        label: `${pac.apellido || ""}, ${pac.nombre || ""}${
+          pac.dni ? ` - DNI: ${pac.dni}` : ""
+        }`,
+      })),
+    [pacientes],
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -157,24 +173,16 @@ export const EditarLaboratorio = () => {
         <form onSubmit={handleSubmit}>
           <div className="row g-3">
             <div className="col-md-8">
-              <label className="form-label fw-semibold text-secondary">
-                Paciente *
-              </label>
-              <select
+              <CustomSelect
+                label="Paciente *"
+                id="pacienteId"
                 name="pacienteId"
-                className="form-select"
                 value={formData.pacienteId}
-                onChange={handleChange}
+                options={opcionesPacientes}
                 required
-              >
-                <option value="">Seleccioná un paciente</option>
-                {pacientes.map((pac) => (
-                  <option key={pac._id} value={pac._id}>
-                    {pac.apellido}, {pac.nombre}
-                    {pac.dni ? ` - DNI: ${pac.dni}` : ""}
-                  </option>
-                ))}
-              </select>
+                placeholder="Escriba apellido, nombre o DNI..."
+                onChange={handleChange}
+              />
             </div>
 
             <div className="col-md-4">
@@ -273,39 +281,33 @@ export const EditarLaboratorio = () => {
             </div>
 
             <div className="col-12">
-              <label className="form-label fw-semibold text-secondary">
-                Observaciones generales del laboratorio
-              </label>
-              <textarea
+              <CustomTextarea
+                label="Observaciones generales del laboratorio"
+                id="observacionesLaboratorio"
                 name="observacionesLaboratorio"
-                className="form-control"
-                rows="2"
+                rows={2}
                 value={formData.observacionesLaboratorio}
                 onChange={handleChange}
               />
             </div>
 
             <div className="col-md-6">
-              <label className="form-label fw-semibold text-secondary">
-                Recordatorio de 24 horas (Dietary Recall 24h)
-              </label>
-              <textarea
+              <CustomTextarea
+                label="Recordatorio de 24 horas (Dietary Recall 24h)"
+                id="dietaryRecall24h"
                 name="dietaryRecall24h"
-                className="form-control"
-                rows="4"
+                rows={4}
                 value={formData.dietaryRecall24h}
                 onChange={handleChange}
               />
             </div>
 
             <div className="col-md-6">
-              <label className="form-label fw-semibold text-secondary">
-                Notas clínicas y observaciones del nutricionista
-              </label>
-              <textarea
+              <CustomTextarea
+                label="Notas clínicas y observaciones del nutricionista"
+                id="notasNutricionista"
                 name="notasNutricionista"
-                className="form-control"
-                rows="4"
+                rows={4}
                 value={formData.notasNutricionista}
                 onChange={handleChange}
               />

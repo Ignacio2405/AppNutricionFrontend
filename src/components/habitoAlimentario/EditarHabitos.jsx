@@ -1,8 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CustomInput } from "../ui/CustomInput.jsx";
+import { CustomSelect } from "../ui/CustomSelect.jsx";
+import { CustomSelectSimple } from "../ui/CustomSelectSimple.jsx";
+import { CustomTextarea } from "../ui/CustomTextarea.jsx";
 import { CustomButton } from "../ui/CustomButton";
 import clientesAxios from "../../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
+
+const OPCIONES_ACTIVIDAD_FISICA = [
+  { value: "sedentario", label: "Sedentario" },
+  { value: "ligero", label: "Ligero" },
+  { value: "moderado", label: "Moderado" },
+  { value: "intenso", label: "Intenso" },
+];
+
+const OPCIONES_NIVEL_ESTRES = [
+  { value: "bajo", label: "Bajo" },
+  { value: "medio", label: "Medio" },
+  { value: "alto", label: "Alto" },
+];
 
 export const EditarHabitos = () => {
   const { id } = useParams();
@@ -33,7 +50,9 @@ export const EditarHabitos = () => {
       try {
         const [resHabitos, resPacientes] = await Promise.all([
           clientesAxios.get(`/habitos/${id}`),
-          clientesAxios.get("/pacientes"),
+          clientesAxios.get("/pacientes", {
+            params: PARAMETROS_LISTADO_COMPLETO,
+          }),
         ]);
 
         if (!activo) return;
@@ -77,6 +96,17 @@ export const EditarHabitos = () => {
       activo = false;
     };
   }, [id]);
+
+  const opcionesPacientes = useMemo(
+    () =>
+      pacientes.map((pac) => ({
+        value: pac._id,
+        label: `${pac.apellido || ""}, ${pac.nombre || ""}${
+          pac.dni ? ` - DNI: ${pac.dni}` : ""
+        }`,
+      })),
+    [pacientes],
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -150,24 +180,16 @@ export const EditarHabitos = () => {
         <form onSubmit={handleSubmit}>
           <div className="row g-3">
             <div className="col-md-6">
-              <label className="form-label fw-semibold text-secondary">
-                Paciente *
-              </label>
-              <select
+              <CustomSelect
+                label="Paciente *"
+                id="pacienteId"
                 name="pacienteId"
-                className="form-select"
                 value={formData.pacienteId}
-                onChange={handleChange}
+                options={opcionesPacientes}
                 required
-              >
-                <option value="">Seleccioná un paciente</option>
-                {pacientes.map((pac) => (
-                  <option key={pac._id} value={pac._id}>
-                    {pac.apellido}, {pac.nombre}
-                    {pac.dni ? ` - DNI: ${pac.dni}` : ""}
-                  </option>
-                ))}
-              </select>
+                placeholder="Escriba apellido, nombre o DNI..."
+                onChange={handleChange}
+              />
             </div>
 
             <div className="col-md-3">
@@ -198,20 +220,14 @@ export const EditarHabitos = () => {
             </div>
 
             <div className="col-md-4">
-              <label className="form-label fw-semibold text-secondary">
-                Nivel de actividad física
-              </label>
-              <select
+              <CustomSelectSimple
+                label="Nivel de actividad física"
+                id="nivelActividadFisica"
                 name="nivelActividadFisica"
-                className="form-select"
                 value={formData.nivelActividadFisica}
+                options={OPCIONES_ACTIVIDAD_FISICA}
                 onChange={handleChange}
-              >
-                <option value="sedentario">Sedentario</option>
-                <option value="ligero">Ligero</option>
-                <option value="moderado">Moderado</option>
-                <option value="intenso">Intenso</option>
-              </select>
+              />
             </div>
 
             <div className="col-md-4">
@@ -228,19 +244,14 @@ export const EditarHabitos = () => {
             </div>
 
             <div className="col-md-4">
-              <label className="form-label fw-semibold text-secondary">
-                Nivel de estrés percibido
-              </label>
-              <select
+              <CustomSelectSimple
+                label="Nivel de estrés percibido"
+                id="nivelEstres"
                 name="nivelEstres"
-                className="form-select"
                 value={formData.nivelEstres}
+                options={OPCIONES_NIVEL_ESTRES}
                 onChange={handleChange}
-              >
-                <option value="bajo">Bajo</option>
-                <option value="medio">Medio</option>
-                <option value="alto">Alto</option>
-              </select>
+              />
             </div>
 
             <div className="col-md-6">
@@ -264,26 +275,22 @@ export const EditarHabitos = () => {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label fw-semibold text-secondary">
-                Historial de dietas previas
-              </label>
-              <textarea
+              <CustomTextarea
+                label="Historial de dietas previas"
+                id="historialDietasPrevias"
                 name="historialDietasPrevias"
-                className="form-control"
-                rows="3"
+                rows={3}
                 value={formData.historialDietasPrevias}
                 onChange={handleChange}
               />
             </div>
 
             <div className="col-md-6">
-              <label className="form-label fw-semibold text-secondary">
-                Resultados de dietas previas
-              </label>
-              <textarea
+              <CustomTextarea
+                label="Resultados de dietas previas"
+                id="resultadosDietasPrevias"
                 name="resultadosDietasPrevias"
-                className="form-control"
-                rows="3"
+                rows={3}
                 value={formData.resultadosDietasPrevias}
                 onChange={handleChange}
               />

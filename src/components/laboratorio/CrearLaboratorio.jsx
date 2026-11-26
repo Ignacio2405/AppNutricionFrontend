@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CustomInput } from "../ui/CustomInput.jsx";
+import { CustomSelect } from "../ui/CustomSelect.jsx";
+import { CustomTextarea } from "../ui/CustomTextarea.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
 import clientesAxios from "../../config/axios.js";
+import { PARAMETROS_LISTADO_COMPLETO } from "../../utils/paginacion.js";
 
 const fechaHoyInput = () => new Date().toISOString().split("T")[0];
 
@@ -34,7 +37,9 @@ export const CrearLaboratorio = () => {
 
     const cargarPacientes = async () => {
       try {
-        const { data } = await clientesAxios.get("/pacientes");
+        const { data } = await clientesAxios.get("/pacientes", {
+          params: PARAMETROS_LISTADO_COMPLETO,
+        });
         if (!activo) return;
         const lista = Array.isArray(data)
           ? data
@@ -54,6 +59,17 @@ export const CrearLaboratorio = () => {
       activo = false;
     };
   }, []);
+
+  const opcionesPacientes = useMemo(
+    () =>
+      pacientes.map((pac) => ({
+        value: pac._id,
+        label: `${pac.apellido || ""}, ${pac.nombre || ""}${
+          pac.dni ? ` - DNI: ${pac.dni}` : ""
+        }`,
+      })),
+    [pacientes],
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -118,34 +134,24 @@ export const CrearLaboratorio = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="row g-3">
-            {/* Paciente */}
             <div className="col-md-8">
-              <label className="form-label fw-semibold text-secondary">
-                Paciente *
-              </label>
-              <select
+              <CustomSelect
+                label="Paciente *"
+                id="pacienteId"
                 name="pacienteId"
-                className="form-select"
                 value={formData.pacienteId}
-                onChange={handleChange}
+                options={opcionesPacientes}
                 disabled={loadingPacientes}
                 required
-              >
-                <option value="">
-                  {loadingPacientes
+                placeholder={
+                  loadingPacientes
                     ? "Cargando pacientes..."
-                    : "Seleccioná un paciente"}
-                </option>
-                {pacientes.map((pac) => (
-                  <option key={pac._id} value={pac._id}>
-                    {pac.apellido}, {pac.nombre}
-                    {pac.dni ? ` - DNI: ${pac.dni}` : ""}
-                  </option>
-                ))}
-              </select>
+                    : "Escriba apellido, nombre o DNI..."
+                }
+                onChange={handleChange}
+              />
             </div>
 
-            {/* Fecha del estudio */}
             <div className="col-md-4">
               <CustomInput
                 label="Fecha del estudio"
@@ -156,7 +162,6 @@ export const CrearLaboratorio = () => {
               />
             </div>
 
-            {/* Marcadores bioquímicos */}
             <div className="col-sm-6 col-md-3">
               <CustomInput
                 label="Glucemia (mg/dL)"
@@ -249,30 +254,24 @@ export const CrearLaboratorio = () => {
               />
             </div>
 
-            {/* Observaciones del laboratorio */}
             <div className="col-12">
-              <label className="form-label fw-semibold text-secondary">
-                Observaciones generales del laboratorio
-              </label>
-              <textarea
+              <CustomTextarea
+                label="Observaciones generales del laboratorio"
+                id="observacionesLaboratorio"
                 name="observacionesLaboratorio"
-                className="form-control"
-                rows="2"
+                rows={2}
                 value={formData.observacionesLaboratorio}
                 onChange={handleChange}
                 placeholder="Valores de referencia del laboratorio, ayuno, comentarios técnicos..."
               />
             </div>
 
-            {/* Recordatorio 24h y notas clínicas */}
             <div className="col-md-6">
-              <label className="form-label fw-semibold text-secondary">
-                Recordatorio de 24 horas (Dietary Recall 24h)
-              </label>
-              <textarea
+              <CustomTextarea
+                label="Recordatorio de 24 horas (Dietary Recall 24h)"
+                id="dietaryRecall24h"
                 name="dietaryRecall24h"
-                className="form-control"
-                rows="4"
+                rows={4}
                 value={formData.dietaryRecall24h}
                 onChange={handleChange}
                 placeholder="Detalle de comidas, horarios, porciones y bebidas ingeridas en las últimas 24 hs..."
@@ -280,13 +279,11 @@ export const CrearLaboratorio = () => {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label fw-semibold text-secondary">
-                Notas clínicas y observaciones del nutricionista
-              </label>
-              <textarea
+              <CustomTextarea
+                label="Notas clínicas y observaciones del nutricionista"
+                id="notasNutricionista"
                 name="notasNutricionista"
-                className="form-control"
-                rows="4"
+                rows={4}
                 value={formData.notasNutricionista}
                 onChange={handleChange}
                 placeholder="Interpretación clínica, conducta nutricional, pedidos complementarios..."

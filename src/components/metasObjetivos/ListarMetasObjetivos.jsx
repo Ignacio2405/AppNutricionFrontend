@@ -3,10 +3,38 @@ import { useNavigate } from "react-router-dom";
 import { BsEye, BsPencilSquare, BsTrash } from "react-icons/bs";
 import { CustomInput } from "../ui/CustomInput.jsx";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { LIMITE_POR_PAGINA, Paginacion } from "../ui/Paginacion.jsx";
 import {
   obtenerMetasObjetivos,
   eliminarMetaObjetivo,
 } from "../../services/metaObjetivo.service.js";
+
+const obtenerUsuarioToken = () => {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const partes = token.split(".");
+    if (partes.length !== 3) return null;
+
+    const base64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+        .join(""),
+    );
+
+    const payload = JSON.parse(jsonPayload);
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+};
 
 const formatearFecha = (fecha) => {
   if (!fecha) return "-";
@@ -27,7 +55,13 @@ const formatearPaciente = (paciente) => {
 };
 
 export const ListarMetasObjetivos = () => {
+  const usuario = useMemo(() => obtenerUsuarioToken(), []);
+  const rolUsuario = String(usuario?.rol || "").toUpperCase();
+  const esPaciente = rolUsuario === "PACIENTE";
+
   const [metas, setMetas] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [paginacion, setPaginacion] = useState({});
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -38,9 +72,13 @@ export const ListarMetasObjetivos = () => {
 
     const cargar = async () => {
       try {
-        const lista = await obtenerMetasObjetivos();
+        const res = await obtenerMetasObjetivos({
+          page: pagina,
+          limit: LIMITE_POR_PAGINA,
+        });
         if (!activo) return;
-        setMetas(lista);
+        setMetas(Array.isArray(res?.data) ? res.data : []);
+        setPaginacion(res?.pagination || {});
       } catch (err) {
         if (!activo) return;
         console.error("Error al cargar metas y objetivos:", err);
@@ -57,7 +95,7 @@ export const ListarMetasObjetivos = () => {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [pagina]);
 
   const handleEliminar = async (id) => {
     const confirmar = window.confirm(
@@ -102,12 +140,14 @@ export const ListarMetasObjetivos = () => {
       <div className="card shadow-sm border-0 p-4 rounded-4">
         <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
           <h3 className="fw-bold text-success mb-0">Metas y Objetivos</h3>
-          <CustomButton
-            type="button"
-            onClick={() => navigate("/metas-objetivos/nuevo")}
-          >
-            + Nuevas Metas
-          </CustomButton>
+          {!esPaciente && (
+            <CustomButton
+              type="button"
+              onClick={() => navigate("/metas-objetivos/nuevo")}
+            >
+              + Nuevas Metas
+            </CustomButton>
+          )}
         </div>
 
         <div className="row mb-3">
@@ -115,7 +155,10 @@ export const ListarMetasObjetivos = () => {
             <CustomInput
               name="busquedaMetas"
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => {
+                setBusqueda(e.target.value);
+                setPagina(1);
+              }}
               placeholder="Buscar por paciente, DNI, objetivo o estado..."
             />
           </div>
@@ -195,26 +238,30 @@ export const ListarMetasObjetivos = () => {
                           >
                             <BsEye size={16} />
                           </CustomButton>
-                          <CustomButton
-                            type="button"
-                            variant="outline-primary"
-                            title="Editar metas"
-                            aria-label="Editar metas"
-                            onClick={() =>
-                              navigate(`/metas-objetivos/editar/${row._id}`)
-                            }
-                          >
-                            <BsPencilSquare size={16} />
-                          </CustomButton>
-                          <CustomButton
-                            type="button"
-                            variant="outline-danger"
-                            title="Eliminar metas"
-                            aria-label="Eliminar metas"
-                            onClick={() => handleEliminar(row._id)}
-                          >
-                            <BsTrash size={16} />
-                          </CustomButton>
+                          {!esPaciente && (
+                            <>
+                            <CustomButton
+                              type="button"
+                              variant="outline-primary"
+                              title="Editar metas"
+                              aria-label="Editar metas"
+                              onClick={() =>
+                                navigate(`/metas-objetivos/editar/${row._id}`)
+                              }
+                            >
+                              <BsPencilSquare size={16} />
+                            </CustomButton>
+                            <CustomButton
+                              type="button"
+                              variant="outline-danger"
+                              title="Eliminar metas"
+                              aria-label="Eliminar metas"
+                              onClick={() => handleEliminar(row._id)}
+                            >
+                              <BsTrash size={16} />
+                            </CustomButton>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -224,6 +271,15 @@ export const ListarMetasObjetivos = () => {
             </table>
           </div>
         )}
+        <Paginacion
+          pagina={pagina}
+          paginacion={paginacion}
+          onCambiarPagina={(nuevaPagina) => {
+            setLoading(true);
+            setPagina(nuevaPagina);
+          }}
+          cargando={loading}
+        />
       </div>
     </div>
   );

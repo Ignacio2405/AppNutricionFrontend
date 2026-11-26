@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { obtenerMetaObjetivoPorId } from "../../services/metaObjetivo.service.js";
 import { CustomButton } from "../ui/CustomButton.jsx";
+import { obtenerUsuarioDesdeToken } from "../utils/authToken.js";
 
 const formatearFecha = (fecha) => {
   if (!fecha) return "-";
@@ -29,6 +30,9 @@ export const DetalleMetaObjetivo = () => {
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const usuario = obtenerUsuarioDesdeToken();
+  const esPaciente =
+    String(usuario?.rol || "").trim().toUpperCase() === "PACIENTE";
 
   useEffect(() => {
     let activo = true;
@@ -123,13 +127,15 @@ export const DetalleMetaObjetivo = () => {
             >
               ← Volver
             </CustomButton>
-            <CustomButton
-              type="button"
-              variant="outline-primary"
-              onClick={() => navigate(`/metas-objetivos/editar/${meta._id}`)}
-            >
-              Editar
-            </CustomButton>
+            {!esPaciente && (
+              <CustomButton
+                type="button"
+                variant="outline-primary"
+                onClick={() => navigate(`/metas-objetivos/editar/${meta._id}`)}
+              >
+                Editar
+              </CustomButton>
+            )}
           </div>
         </div>
 
